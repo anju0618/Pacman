@@ -3,7 +3,7 @@
 CONFIG = config.json
 SRC_DIR = src
 MAIN_SCRIPT = $(SRC_DIR)/pac-man.py
-# TEST_DIR = tests/
+TEST_DIR = tests/
 
 install:
 	uv sync
@@ -35,13 +35,13 @@ fclean: clean
 	fi
 
 lint:
-	uv run flake8 $(SRC_DIR)
-	uv run mypy --explicit-package-bases --warn-return-any --warn-unused-ignores --ignore-missing-imports --disallow-untyped-defs --check-untyped-defs $(SRC_DIR)
+	uv run flake8 $(SRC_DIR) $(TEST_DIR)
+	uv run mypy --explicit-package-bases --warn-return-any --warn-unused-ignores --ignore-missing-imports --disallow-untyped-defs --check-untyped-defs $(SRC_DIR) $(TEST_DIR)
 
 lint-strict:
-	uv run flake8 $(SRC_DIR)
-	uv run mypy --strict $(SRC_DIR)
+	uv run flake8 $(SRC_DIR) $(TEST_DIR)
+	uv run mypy --strict $(SRC_DIR) $(TEST_DIR)
 
 test:
 	@echo "Running test suite with pytest..."
-	# PYTHONPATH=. uv run python -m pytest $(TEST_DIR) -v
+	PYTHONPATH=. uv run python -m pytest $(TEST_DIR) -v
