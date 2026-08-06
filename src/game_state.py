@@ -8,7 +8,7 @@ from src.enums import GameState
 
 @dataclass
 class PacmanGameContext:
-    """ゲーム進行に必要な現在のコンテキスト（状態）を保持する"""
+    """ゲーム進行に必要な現在の状態を保持するクラス"""
     state: GameState = GameState.MAIN_MENU
     current_level: int = 1
     score: int = 0
