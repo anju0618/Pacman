@@ -1,0 +1,40 @@
+# =========================
+# Game Data
+# =========================
+highscores.json
+# または data/ などのディレクトリごと除外
+
+# =========================
+# Python & Environment
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+.python-version
+
+# =========================
+# Testing & Type Checking
+# =========================
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# =========================
+# Distribution / Packaging
+# =========================
+*.zip
+*.tar.gz
+*.pdf
+
+# =========================
+# OS & IDE
+# =========================
+.DS_Store
+.vscode/
+.idea/
+*.swp
