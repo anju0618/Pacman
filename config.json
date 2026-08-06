@@ -1,0 +1,40 @@
+# ==========================================
+# Pac-Man Game Configuration
+# ==========================================
+# Lines starting with '#' are comments and must be ignored by the parser.
+
+{
+  "highscore_filename": "highscores.json",
+  "seed": 42,
+  "lives": 3,
+  "level_max_time": 90,
+  
+  # ==========================================
+  # Entity Scores & Settings
+  # ==========================================
+  "pacgum": 42,
+  "points_per_pacgum": 10,
+  "points_per_super_pacgum": 50,
+  "points_per_ghost": 200,
+
+  # ==========================================
+  # Level Definitions
+  # ==========================================
+  "level": [
+    {
+      "id": 1,
+      "width": 21,
+      "height": 21
+    },
+    {
+      "id": 2,
+      "width": 25,
+      "height": 25
+    },
+    {
+      "id": 3,
+      "width": 31,
+      "height": 31
+    }
+  ]
+}
