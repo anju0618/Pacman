@@ -12,7 +12,7 @@ class Config(BaseModel):
     highscore_filename: str = "highscores.json"
 
     seed: int = 42
-    lives: int = Field(default=10, ge=10)
+    lives: int = Field(default=10, ge=1) #一旦1にしてますが、10に変える
     level_max_time: int = Field(default=90, ge=1)
 
     pacgum: int = Field(default=42, ge=1)
@@ -37,17 +37,17 @@ class Parsing:
         return "\n".join(rows)
 
     @staticmethod
-    def parse_file(path: str) -> Config:
+    def parse_file(filename: str) -> Config:
         try:
-            with open(path, "r", encoding="utf-8") as f:
+            with open(filename, "r", encoding="utf-8") as f:
                 text = f.read()
 
         except FileNotFoundError:
-            print(f"File not found: {path}")
+            print(f"File not found: {filename}")
             return Config()
 
         except PermissionError:
-            print(f"Permission denied: {path}")
+            print(f"Permission denied: {filename}")
             return Config()
 
         except OSError as e:
