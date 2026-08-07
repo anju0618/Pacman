@@ -12,7 +12,7 @@ class Config(BaseModel):
     highscore_filename: str = "highscores.json"
 
     seed: int = 42
-    lives: int = Field(default=10, ge=1) #一旦1にしてますが、10に変える
+    lives: int = Field(default=10, ge=1)  # 一旦1にしてますが、10に変える
     level_max_time: int = Field(default=90, ge=1)
 
     pacgum: int = Field(default=42, ge=1)
@@ -24,6 +24,7 @@ class Config(BaseModel):
 
 
 class Parsing:
+
     @staticmethod
     def _remove_comments(text: str) -> str:
         rows: list[str] = []
