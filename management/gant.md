@@ -1,3 +1,9 @@
+2026
+0806 amakino enums.py game_state.py maze_loader.py作成
+0806 takawaka 書いて！！後でAIにまとめさせよう！！
+0807 amakino バグ修正、configデータ格納
+
+
 ```mermaid
 gantt
     title Packman Project Timeline - Member Work Division & Tasks
