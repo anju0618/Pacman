@@ -6,7 +6,15 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="packman"
     )
-    parser.add_argument("configfile", help="ConfigFile")
+    parser.add_argument(
+        "config",
+        help="config file name"
+    )
+    parser.add_argument(
+        "--cheat",
+        action="store_true",
+        help="can not be dameged"
+    )
     args = parser.parse_args()
     print(args.configfile)
     print("=" * 30)
