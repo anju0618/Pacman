@@ -16,10 +16,10 @@ def main() -> None:
         help="can not be dameged"
     )
     args = parser.parse_args()
-    print(args.configfile)
+    print(args.config)
     print("=" * 30)
     file_parser = Parsing()
-    config = file_parser.parse_file(args.configfile)
+    config = file_parser.parse_file(args.config)
     print(config)
 
 
