@@ -2,7 +2,7 @@
 
 CONFIG = config.json
 SRC_DIR = src
-MAIN_SCRIPT = $(SRC_DIR)/pac-man.py
+MAIN_SCRIPT = pac-man.py
 TEST_DIR = tests/
 
 install:

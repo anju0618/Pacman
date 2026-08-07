@@ -1,14 +1,16 @@
+# src/game_state.py
 """
 module defining game state class
 """
-# src/game_state.py
+
 from dataclasses import dataclass
 from src.enums import GameState
-
+from src.parse import Config
 
 @dataclass
 class PacmanGameContext:
     """ゲーム進行に必要な現在の状態を保持するクラス"""
+    config: Config
     state: GameState = GameState.MAIN_MENU
     current_level: int = 1
     score: int = 0
@@ -16,17 +18,13 @@ class PacmanGameContext:
     time_remaining: float = 90.0  # デフォルトの時間制限
     is_cheat_mode_active: bool = False  # チートモードのフラグ
 
-    def reset_for_new_game(
-            self,
-            starting_lives: int = 3,
-            level_time: float = 90.0
-            ) -> None:
-        """新規ゲーム開始時に状態を初期化する"""
+    def reset_for_new_game(self) -> None:
+        """新規ゲーム開始時にconfigからロード"""
         self.state = GameState.IN_GAME
         self.current_level = 1
         self.score = 0
-        self.lives = starting_lives
-        self.time_remaining = level_time
+        self.lives = self.config.lives
+        self.time_remaining = self.config.level_max_time
 
     def lose_life(self) -> None:
         """残機を減らし、ゲームオーバー判定を行う"""
