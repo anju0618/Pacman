@@ -1,22 +1,81 @@
-from typing import Any
-from pydantic import BaseModel
-import defaultdict
+import json
+from pydantic import BaseModel, Field, ValidationError
 
 
-def parse_file(path: str) -> list[dict[str, Any]]:
-    config: list[dict[str, Any]] = []
-    try:
-        with open(path, "r") as f:
-            text: str = f.read()
-            text_rows: list[str] = text.splitlines()
-            new_rows: list[str] = []
-            for row in text_rows:
-                if row.strip().startswith("#"):
-                    continue
-                new_rows.append(row)
+class Level(BaseModel):
+    id: int = Field(ge=1)
+    width: int = Field(ge=1)
+    height: int = Field(ge=1)
 
-    except PermissionError as e:
-        print(e)
-    except FileNotFoundError as e:
-        print(e)
-    return config
+
+class Config(BaseModel):
+    highscore_filename: str = "highscores.json"
+
+    seed: int = 42
+    lives: int = Field(default=10, ge=10)
+    level_max_time: int = Field(default=90, ge=1)
+
+    pacgum: int = Field(default=42, ge=1)
+    points_per_pacgum: int = Field(default=10, ge=0)
+    points_per_super_pacgum: int = Field(default=50, ge=0)
+    points_per_ghost: int = Field(default=200, ge=0)
+
+    level: list[Level] = Field(default_factory=list)
+
+
+class Parsing:
+    @staticmethod
+    def _remove_comments(text: str) -> str:
+        rows: list[str] = []
+
+        for row in text.splitlines():
+            if row.lstrip().startswith("#"):
+                continue
+
+            rows.append(row)
+
+        return "\n".join(rows)
+
+    @staticmethod
+    def parse_file(path: str) -> Config:
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                text = f.read()
+
+        except FileNotFoundError:
+            print(f"File not found: {path}")
+            return Config()
+
+        except PermissionError:
+            print(f"Permission denied: {path}")
+            return Config()
+
+        except OSError as e:
+            print(f"Could not open config file: {e}")
+            return Config()
+
+        text = Parsing._remove_comments(text)
+
+        try:
+            data = json.loads(text)
+
+        except json.JSONDecodeError as e:
+            print(
+                f"Invalid JSON: "
+                f"line {e.lineno}, "
+                f"column {e.colno}: "
+                f"{e.msg}"
+            )
+            return Config()
+
+        if not isinstance(data, dict):
+            print("Config root must be a JSON object.")
+            return Config()
+
+        try:
+            return Config.model_validate(data)
+
+        except ValidationError as e:
+            print("Invalid configuration:")
+            print(e)
+            return Config()
