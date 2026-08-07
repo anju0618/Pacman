@@ -1,5 +1,5 @@
 import argparse
-from src.parse import Parsing
+from parse import Parsing
 
 
 def main() -> None:
