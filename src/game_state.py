@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from src.enums import GameState
 from src.parse import Config
 
+
 @dataclass
 class PacmanGameContext:
     """ゲーム進行に必要な現在の状態を保持するクラス"""
