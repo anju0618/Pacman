@@ -27,6 +27,7 @@ class Parsing:
 
     @staticmethod
     def _remove_comments(text: str) -> str:
+
         rows: list[str] = []
 
         for row in text.splitlines():
@@ -39,6 +40,7 @@ class Parsing:
 
     @staticmethod
     def parse_file(filename: str) -> Config:
+
         try:
             with open(filename, "r", encoding="utf-8") as f:
                 text = f.read()
