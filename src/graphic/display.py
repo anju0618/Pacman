@@ -3,6 +3,8 @@ display config mod
 """
 import pygame
 from src.maze_loader import MazeLoader
+from src.character.pacman import Pacman
+from src.enums import Direction
 
 
 class Display:
@@ -10,8 +12,13 @@ class Display:
     def __init__(self, width: int = 800, height: int = 600) -> None:
         pygame.init()
 
+        start_x: int = 1
+        start_y: int = 1
+
+        self.pacman = Pacman(start_x, start_y)
+
         self.maze_loader = MazeLoader(width=28, height=31, seed=42)
-        self.maze_data = self.maze_loader.get_maze_data()
+        self.maze_data = self.maze_loader.get_binary_grid()
 
         self.cell_size = 20
 
@@ -31,9 +38,17 @@ class Display:
         while running:
 
             for event in pygame.event.get():
-
                 if event.type == pygame.QUIT:
                     running = False
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_UP:
+                        self.pacman.set_direction(Direction.UP)
+                    elif event.key == pygame.K_DOWN:
+                        self.pacman.set_direction(Direction.DOWN)
+                    elif event.key == pygame.K_LEFT:
+                        self.pacman.set_direction(Direction.LEFT)
+                    elif event.key == pygame.K_RIGHT:
+                        self.pacman.set_direction(Direction.RIGHT)
 
             self.screen.fill((0, 0, 0))
 
@@ -48,6 +63,12 @@ class Display:
                             self.cell_size
                             )
                         pygame.draw.rect(self.screen, (0, 0, 255), rect)
+
+            self.pacman.update(self.maze_data)
+            pac_px = int(self.pacman.x * self.cell_size + self.cell_size / 2)
+            pac_py = int(self.pacman.y * self.cell_size + self.cell_size / 2)
+            radius = int(self.cell_size / 2 * 0.8)
+            pygame.draw.circle(self.screen, (255, 255, 0), (pac_px, pac_py), radius)
 
             self.clock.tick(60)
             pygame.display.flip()
