@@ -7,7 +7,7 @@ from src.character.base import Character
 
 class Ghost(Character):
     """
-    Ghoast class
+    Ghost base class
     4匹ごと違う
     """
 
@@ -19,17 +19,41 @@ class Ghost(Character):
     ) -> None:
         super().__init__(start_x, start_y)
         self.type: GhostType = ghost_type
-        # defaul mode == SCATTER
+        # default mode == SCATTER
         self.mode: GhostMode = GhostMode.SCATTER
 
-    def dicide_next_direction(
+    def get_available_directions(
         self,
-        available_direction: list[Direction],
+        maze_data: list[list[int]]
+    ) -> list[Direction]:
+        """
+        壁ではない方向のリストを返す。
+        来た道（現在の進行方向の逆）は、行き止まりでない限り除外する
+        （本家のUターン禁止ルール）。
+        """
+        opposite = self._opposite_direction(self.direction)
+        open_directions = []
+
+        for direction in Direction:
+            next_x, next_y = self._get_next_grid_coords(direction)
+            if (
+                0 <= next_y < len(maze_data)
+                and 0 <= next_x < len(maze_data[0])
+                and maze_data[next_y][next_x] == 0
+            ):
+                open_directions.append(direction)
+
+        non_reverse = [d for d in open_directions if d != opposite]
+        return non_reverse if non_reverse else open_directions
+
+    def decide_next_direction(
+        self,
+        available_directions: list[Direction],
         target_x: int,
         target_y: int
     ) -> Direction:
         """
-        available = 壁ではなく、来た道でない方向のリスト
+        available_directions = 壁ではなく、来た道でない方向のリスト
         """
 
         if not available_directions:
@@ -65,6 +89,15 @@ class Ghost(Character):
         elif direction == Direction.RIGHT:
             return current_x + 1, current_y
         return current_x, current_y
+
+    def _opposite_direction(self, direction: Direction) -> Direction:
+        opposite_of = {
+            Direction.UP: Direction.DOWN,
+            Direction.DOWN: Direction.UP,
+            Direction.LEFT: Direction.RIGHT,
+            Direction.RIGHT: Direction.LEFT,
+        }
+        return opposite_of[direction]
 
     def _tie_breaker(self, dir1: Direction, dir2: Direction) -> Direction:
         priority = {
