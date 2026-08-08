@@ -13,7 +13,7 @@ class Config(BaseModel):
     highscore_filename: str = "highscores.json"
 
     seed: int = 42
-    lives: int = Field(default=10, ge=1)  # 一旦1にしてますが、10に変える
+    lives: int = Field(default=3, ge=1)
     level_max_time: int = Field(default=90, ge=1)
 
     pacgum: int = Field(default=42, ge=1)
@@ -27,11 +27,41 @@ class Config(BaseModel):
 class Parsing:
 
     @staticmethod
-    def _remove_comments(text: str) -> str:
+    def _strip_line_comment(line: str) -> str:
+        """
+        行内で最初にJSON文字列の外側に現れた '#' または '//' より
+        右側をコメントとして切り捨てる。文字列リテラル内の '#'/'//' は
+        値として保持する。
+        """
+        in_string = False
+        escaped = False
 
+        for i, ch in enumerate(line):
+            if in_string:
+                if escaped:
+                    escaped = False
+                elif ch == '\\':
+                    escaped = True
+                elif ch == '"':
+                    in_string = False
+                continue
+
+            if ch == '"':
+                in_string = True
+            elif ch == '#':
+                return line[:i]
+            elif ch == '/' and i + 1 < len(line) and line[i + 1] == '/':
+                return line[:i]
+
+        return line
+
+    @staticmethod
+    def _remove_comments(text: str) -> str:
         text = re.sub(r'/\*.*?\*/', '', text, flags=re.DOTALL)
-        text = re.sub(r'(#|//).*', '', text)
-        return text
+        lines = [
+            Parsing._strip_line_comment(line) for line in text.splitlines()
+        ]
+        return '\n'.join(lines)
 
     @staticmethod
     def parse_file(filename: str) -> Config:
@@ -70,10 +100,32 @@ class Parsing:
             print("Config root must be a JSON object.")
             return Config()
 
-        try:
-            return Config.model_validate(data)
+        return Parsing._build_config(data)
 
-        except ValidationError as e:
-            print("Invalid configuration:")
-            print(e)
-            return Config()
+    @staticmethod
+    def _build_config(data: dict) -> Config:
+        """
+        キーごとに検証し、不正な値は安全なデフォルトにクランプして
+        ログ出力のうえ処理を続行する。未知のキーは無視する。
+        """
+        config = Config()
+
+        for key, value in data.items():
+            if key not in Config.model_fields:
+                continue
+
+            try:
+                config = Config.model_validate(
+                    {**config.model_dump(), key: value}
+                )
+            except ValidationError as e:
+                default = Config.model_fields[key].get_default(
+                    call_default_factory=True
+                )
+                print(
+                    f"Invalid value for '{key}': {value!r} "
+                    f"-> using default {default!r} "
+                    f"({e.error_count()} error(s))"
+                )
+
+        return config

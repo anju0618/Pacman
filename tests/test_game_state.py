@@ -1,17 +1,18 @@
 # tests/test_game_state.py
 from src.enums import GameState
 from src.game_state import PacmanGameContext
+from src.parse import Config
 
 
 def test_initial_game_state() -> None:
-    context = PacmanGameContext()
+    context = PacmanGameContext(config=Config())
     assert context.state == GameState.MAIN_MENU
     assert context.lives == 3
     assert context.score == 0
 
 
 def test_add_score() -> None:
-    context = PacmanGameContext()
+    context = PacmanGameContext(config=Config())
     context.add_score(10)
     assert context.score == 10
     # スコアが減らないことのテスト（負の値は無視される設計）
@@ -20,7 +21,7 @@ def test_add_score() -> None:
 
 
 def test_lose_life_and_game_over() -> None:
-    context = PacmanGameContext()
+    context = PacmanGameContext(config=Config())
     context.state = GameState.IN_GAME
 
     context.lose_life()
