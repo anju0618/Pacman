@@ -2,7 +2,7 @@
 0806 amakino enums.py game_state.py maze_loader.py作成
 0806 takawaka 書いて！！後でAIにまとめさせよう！！
 0807 amakino バグ修正、configデータ格納　キャラクタのbasemodell class開始
-0808 amakino 
+0808 amakino blinkyとかpacmanのクラス作ってて、順番違うなって気づいて中断。グラッフィック開始。　config.jsonのコメントアウト全対応を試みる(reを使用)
 
 
 ```mermaid
