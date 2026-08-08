@@ -16,7 +16,7 @@ class Character:
         self.next_direction: Direction | None = None
         self.speed: float = 0.15
         # 当たり判定と描画の両方で共有する半径（食い違うと壁にめり込んで見える）
-        self.radius: float = 0.35
+        self.radius: float = 0.35 # 0.45にすると食い込まない
 
     def get_current_grid(self) -> tuple[int, int]:
         return int(self.x + 0.5), int(self.y + 0.5)
