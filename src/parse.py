@@ -1,4 +1,5 @@
 import json
+import re
 from pydantic import BaseModel, Field, ValidationError
 
 
@@ -28,15 +29,9 @@ class Parsing:
     @staticmethod
     def _remove_comments(text: str) -> str:
 
-        rows: list[str] = []
-
-        for row in text.splitlines():
-            if row.lstrip().startswith("#"):
-                continue
-
-            rows.append(row)
-
-        return "\n".join(rows)
+        text = re.sub(r'/\*.*?\*/', '', text, flags=re.DOTALL)
+        text = re.sub(r'(#|//).*', '', text)
+        return text
 
     @staticmethod
     def parse_file(filename: str) -> Config:
