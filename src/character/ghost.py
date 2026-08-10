@@ -3,6 +3,7 @@ Module defining the ghost characters and their AI.
 """
 from src.enums import Direction, GhostMode, GhostType
 from src.character.base import Character
+from src.character.pacman import Pacman
 
 
 class Ghost(Character):
@@ -21,6 +22,19 @@ class Ghost(Character):
         self.type: GhostType = ghost_type
         # default mode == SCATTER
         self.mode: GhostMode = GhostMode.SCATTER
+
+    def determine_direction(
+        self,
+        pacman: Pacman,
+        maze_data: list[list[int]]
+    ) -> Direction:
+        """各ゴーストのサブクラスがターゲット算出込みで実装する"""
+        raise NotImplementedError
+
+    def update(self, pacman: Pacman, maze_data: list[list[int]]) -> None:
+        """毎フレーム呼ばれる更新処理：AIで方向を決定し、移動する"""
+        self.next_direction = self.determine_direction(pacman, maze_data)
+        self.move_forward(maze_data)
 
     def get_available_directions(
         self,

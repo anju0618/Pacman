@@ -20,3 +20,4 @@
 ## Resources
 ### パックマン本家
  - [パックマン 解析プログラム動画から見る 追跡アルゴリズム](https://www.webcyou.com/?p=10440) -パックマン自体のアルゴリズムなどの勉強
+ - [追跡アルゴリズムを考える パックマンをJavaScript/TypeScriptでつくる (その5)](https://lets-csharp.com/pacman-js-approach/)

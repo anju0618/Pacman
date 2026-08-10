@@ -34,16 +34,46 @@ class MazeLoader:
         width = len(binary_grid[0])
         center_x, center_y = width // 2, height // 2
 
-        if binary_grid[center_y][center_x] == 0:
-            return center_x, center_y
+        return self._find_nearest_open_cell(binary_grid, center_x, center_y)
 
-        best_position = (center_x, center_y)
+    def find_corner_positions(self) -> list[tuple[int, int]]:
+        """
+        4匹のゴーストの初期出現位置として、迷路の四隅
+        （左上・右上・左下・右下）に最も近い通路セルを返す。
+        """
+        binary_grid = self.get_binary_grid()
+        height = len(binary_grid)
+        width = len(binary_grid[0])
+        corners = [
+            (0, 0),
+            (width - 1, 0),
+            (0, height - 1),
+            (width - 1, height - 1),
+        ]
+        return [
+            self._find_nearest_open_cell(binary_grid, corner_x, corner_y)
+            for corner_x, corner_y in corners
+        ]
+
+    def _find_nearest_open_cell(
+        self,
+        binary_grid: list[list[int]],
+        target_x: int,
+        target_y: int
+    ) -> tuple[int, int]:
+        """指定座標に最も近い通路セル（0）のグリッド座標を返す"""
+        if binary_grid[target_y][target_x] == 0:
+            return target_x, target_y
+
+        height = len(binary_grid)
+        width = len(binary_grid[0])
+        best_position = (target_x, target_y)
         best_distance = None
         for y in range(height):
             for x in range(width):
                 if binary_grid[y][x] != 0:
                     continue
-                distance = (x - center_x) ** 2 + (y - center_y) ** 2
+                distance = (x - target_x) ** 2 + (y - target_y) ** 2
                 if best_distance is None or distance < best_distance:
                     best_distance = distance
                     best_position = (x, y)
