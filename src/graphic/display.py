@@ -4,7 +4,19 @@ display config mod
 import pygame
 from src.maze_loader import MazeLoader
 from src.character.pacman import Pacman
+from src.character.ghost import Ghost
+from src.character.blinky import Blinky
+from src.character.pinky import Pinky
+from src.character.inky import Inky
+from src.character.clyde import Clyde
 from src.enums import Direction
+
+GHOST_COLORS: dict[type, tuple[int, int, int]] = {
+    Blinky: (255, 0, 0),
+    Pinky: (255, 184, 255),
+    Inky: (0, 255, 255),
+    Clyde: (255, 184, 82),
+}
 
 
 class Display:
@@ -27,6 +39,14 @@ class Display:
 
         start_x, start_y = self.maze_loader.find_center_start_position()
         self.pacman = Pacman(float(start_x), float(start_y))
+
+        corners = self.maze_loader.find_corner_positions()
+        ghost_classes = (Blinky, Pinky, Inky, Clyde)
+        self.ghosts: list[Ghost] = [
+            ghost_cls(float(corner_x), float(corner_y))
+            for ghost_cls, (corner_x, corner_y)
+            in zip(ghost_classes, corners)
+        ]
 
         self.cell_size = 20
 
@@ -81,6 +101,16 @@ class Display:
             pygame.draw.circle(
                 self.screen, (255, 255, 0), (pac_px, pac_py), radius
             )
+
+            for ghost in self.ghosts:
+                ghost.update(self.pacman, self.maze_data)
+                ghost_px = int(ghost.x * self.cell_size + self.cell_size / 2)
+                ghost_py = int(ghost.y * self.cell_size + self.cell_size / 2)
+                ghost_radius = int(ghost.radius * self.cell_size)
+                color = GHOST_COLORS[type(ghost)]
+                pygame.draw.circle(
+                    self.screen, color, (ghost_px, ghost_py), ghost_radius
+                )
 
             self.clock.tick(60)
             pygame.display.flip()
