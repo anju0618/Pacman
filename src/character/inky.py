@@ -1,8 +1,8 @@
 """
-pink ghost (Machibuse/Pinky)
-target: パックマンが向いている方向の4タイル先
+Inky ghost (Kimagure/Bashful)
+target: パックマンが向いている方向の2タイル先
 Note: オリジナルで、パックマンが上を向いているときだけ、
-    ターゲットが上4タイルかつ左4タイルにずれるバグある
+    ターゲットが上2タイルかつ左2タイルにずれるバグある
 """
 
 from src.character.ghost import Ghost
@@ -11,10 +11,10 @@ from src.character.pacman import Pacman
 from src.enums import Direction
 
 
-class Pinky(Ghost):
+class Inky(Ghost):
 
     def __init__(self, start_x: float, start_y: float) -> None:
-        super().__init__(start_x, start_y, GhostType.PINKY)
+        super().__init__(start_x, start_y, GhostType.INKY)
 
     def determine_direction(
         self,
@@ -23,15 +23,15 @@ class Pinky(Ghost):
     ) -> Direction:
 
         target_x, target_y = pacman.get_current_grid()
-        if pacman.direction == UP:
-            target_x -= 4
-            target_y -= 4
-        elif pacman.direction == DOWN:
-            target_y += 4
-        elif pacman.direction == LEFT:
-            target_x -= 4
-        elif pacman.direction == RIGHT:
-            target_x +=4
+        if pacman.direction == Direction.UP:
+            target_x -= 2
+            target_y -= 2
+        elif pacman.direction == Direction.DOWN:
+            target_y += 2
+        elif pacman.direction == Direction.LEFT:
+            target_x -= 2
+        elif pacman.direction == Direction.RIGHT:
+            target_x +=2
         available_directions = self.get_available_directions(maze_data)
         return self.decide_next_direction(
             available_directions, target_x, target_y
