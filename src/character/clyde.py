@@ -22,7 +22,8 @@ class Clyde(Ghost):
     def determine_direction(
         self,
         pacman: Pacman,
-        maze_data: list[list[int]]
+        maze_data: list[list[int]],
+        ghosts: list[Ghost]
     ) -> Direction:
         pacman_x, pacman_y = pacman.get_current_grid()
         self_x, self_y = self.get_current_grid()

@@ -17,7 +17,8 @@ class Blinky(Ghost):
     def determine_direction(
         self,
         pacman: Pacman,
-        maze_data: list[list[int]]
+        maze_data: list[list[int]],
+        ghosts: list[Ghost]
     ) -> Direction:
         target_x, target_y = pacman.get_current_grid()
         available_directions = self.get_available_directions(maze_data)

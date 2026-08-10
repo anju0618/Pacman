@@ -53,7 +53,6 @@ class Character:
         return False
 
     def move_forward(self, maze_data: list[list[int]]) -> bool:
-        # 0. 逆方向への入力なら、いつでも即座にUターンを許可する（本家の超重要テクニック！）
         if self.next_direction is not None:
             is_horizontal_opposite = (
                 self.direction in (Direction.LEFT, Direction.RIGHT) and
