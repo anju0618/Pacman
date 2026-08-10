@@ -31,7 +31,7 @@ class Inky(Ghost):
         elif pacman.direction == Direction.LEFT:
             target_x -= 2
         elif pacman.direction == Direction.RIGHT:
-            target_x +=2
+            target_x += 2
         available_directions = self.get_available_directions(maze_data)
         return self.decide_next_direction(
             available_directions, target_x, target_y
