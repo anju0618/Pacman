@@ -1,12 +1,14 @@
 import json
 import re
+from typing import Annotated, TypedDict
+
 from pydantic import BaseModel, Field, ValidationError
 
 
-class Level(BaseModel):
-    id: int = Field(ge=1)
-    width: int = Field(ge=1)
-    height: int = Field(ge=1)
+class Level(TypedDict):
+    id: Annotated[int, Field(ge=1)]
+    width: Annotated[int, Field(ge=1)]
+    height: Annotated[int, Field(ge=1)]
 
 
 class Config(BaseModel):
@@ -65,7 +67,6 @@ class Parsing:
 
     @staticmethod
     def parse_file(filename: str) -> Config:
-
         try:
             with open(filename, "r", encoding="utf-8") as f:
                 text = f.read()
@@ -103,9 +104,9 @@ class Parsing:
         return Parsing._build_config(data)
 
     @staticmethod
-    def _build_config(data: dict) -> Config:
+    def _build_config(data: dict[str, object]) -> Config:
         """
-        キーごとに検証し、不正な値は安全なデフォルトにクランプして
+        キーごとに検証し、不正な値は安全なデフォルトにフォールバックして
         ログ出力のうえ処理を続行する。未知のキーは無視する。
         """
         config = Config()
