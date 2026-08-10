@@ -31,7 +31,7 @@ class Pinky(Ghost):
         elif pacman.direction == Direction.LEFT:
             target_x -= 4
         elif pacman.direction == Direction.RIGHT:
-            target_x +=4
+            target_x += 4
         available_directions = self.get_available_directions(maze_data)
         return self.decide_next_direction(
             available_directions, target_x, target_y
