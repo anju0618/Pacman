@@ -1,6 +1,7 @@
 """
 Module defining the ghost characters and their AI.
 """
+from collections import deque
 from src.enums import Direction, GhostMode, GhostType
 from src.character.base import Character
 from src.character.pacman import Pacman
@@ -22,18 +23,41 @@ class Ghost(Character):
         self.type: GhostType = ghost_type
         # default mode == SCATTER
         self.mode: GhostMode = GhostMode.SCATTER
+        # 直近に方向決定を行ったマス（本家同様、方向転換は交差点＝マスに
+        # 侵入した瞬間だけ判断する。毎フレーム再計算すると、パックマンが
+        # 静止している時に強制Uターン地点で判断がすぐ覆り、行ったり来たり
+        # 振動してしまう）
+        self._decided_grid: tuple[int, int] | None = None
+        # 直近に通過したマスの履歴（直進距離だけで進行方向を決める貪欲法は、
+        # 目的地が動かないと迷路内の小さな輪っか状の通路をぐるぐる無限に
+        # 周回してしまうことがある＝行ったり来たり振動して見える原因。
+        # 直近に通ったマスへは行き止まりでない限り戻らないようにして防ぐ）
+        self._recent_cells: deque[tuple[int, int]] = deque(maxlen=12)
 
     def determine_direction(
         self,
         pacman: Pacman,
-        maze_data: list[list[int]]
+        maze_data: list[list[int]],
+        ghosts: list["Ghost"]
     ) -> Direction:
         """各ゴーストのサブクラスがターゲット算出込みで実装する"""
         raise NotImplementedError
 
-    def update(self, pacman: Pacman, maze_data: list[list[int]]) -> None:
-        """毎フレーム呼ばれる更新処理：AIで方向を決定し、移動する"""
-        self.next_direction = self.determine_direction(pacman, maze_data)
+    def update(
+        self,
+        pacman: Pacman,
+        maze_data: list[list[int]],
+        ghosts: list["Ghost"]
+    ) -> None:
+        """毎フレーム呼ばれる更新処理：新しいマスに入った時だけAIで方向を
+        決定し、移動は毎フレーム行う"""
+        current_grid = self.get_current_grid()
+        if current_grid != self._decided_grid:
+            self._decided_grid = current_grid
+            self._recent_cells.append(current_grid)
+            self.next_direction = self.determine_direction(
+                pacman, maze_data, ghosts
+            )
         self.move_forward(maze_data)
 
     def get_available_directions(
@@ -58,7 +82,14 @@ class Ghost(Character):
                 open_directions.append(direction)
 
         non_reverse = [d for d in open_directions if d != opposite]
-        return non_reverse if non_reverse else open_directions
+        if not non_reverse:
+            return open_directions
+
+        unvisited = [
+            d for d in non_reverse
+            if self._get_next_grid_coords(d) not in self._recent_cells
+        ]
+        return unvisited if unvisited else non_reverse
 
     def decide_next_direction(
         self,

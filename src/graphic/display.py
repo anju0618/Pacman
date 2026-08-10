@@ -133,7 +133,7 @@ class Display:
             )
 
             for ghost in self.ghosts:
-                ghost.update(self.pacman, self.maze_data)
+                ghost.update(self.pacman, self.maze_data, self.ghosts)
                 ghost_px = int(ghost.x * self.cell_size + self.cell_size / 2)
                 ghost_py = int(ghost.y * self.cell_size + self.cell_size / 2)
                 ghost_radius = int(ghost.radius * self.cell_size)

@@ -7,12 +7,6 @@ from mazegenerator import MazeGenerator
 
 class MazeLoader:
     def __init__(self, width: int, height: int, seed: int) -> None:
-        # MazeGenerator.__init__ が内部で generate() を呼ぶので、
-        # ここで改めて generate() を呼ぶ必要はない（呼ぶと二重生成になる）。
-        # entry_cell はライブラリのデフォルト(0, 0)のまま使う。
-        # 中央付近に埋め込まれる「42」の飾り文字セルは生成前から
-        # 全方向が壁として確定しているため、そこを起点に指定すると
-        # 迷路生成そのものが失敗する（起点が完全に孤立する）。
         self.generator = MazeGenerator(
             size=(width, height),
             perfect=False,
@@ -20,7 +14,7 @@ class MazeLoader:
         )
 
     def get_maze_data(self) -> list[list[int]]:
-        """生成された迷路の2次元リスト（16進数ビットマスク）を返す"""
+        """生成された迷路の2次元リストを返す"""
         return cast(list[list[int]], self.generator.maze)
 
     def find_center_start_position(self) -> tuple[int, int]:
@@ -38,8 +32,7 @@ class MazeLoader:
 
     def find_corner_positions(self) -> list[tuple[int, int]]:
         """
-        4匹のゴーストの初期出現位置として、迷路の四隅
-        （左上・右上・左下・右下）に最も近い通路セルを返す。
+        4匹のゴーストの初期出現位置として、迷路の四隅に最も近い通路セルを返す
         """
         binary_grid = self.get_binary_grid()
         height = len(binary_grid)

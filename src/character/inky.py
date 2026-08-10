@@ -1,8 +1,12 @@
 """
 Inky ghost (Kimagure/Bashful)
-target: パックマンが向いている方向の2タイル先
-Note: オリジナルで、パックマンが上を向いているときだけ、
-    ターゲットが上2タイルかつ左2タイルにずれるバグある
+target:
+  1. パックマンが向いている方向の2タイル先を「基準点」とする
+     （Pinky同様、上向き時は上2＋左2にズレる本家バグを再現）
+  2. Blinkyの現在地から基準点へ引いたベクトルを2倍延長した先のタイル
+     target = pivot + (pivot - blinky) = 2*pivot - blinky
+Note: Blinkyの位置に依存するため、Blinkyが見つからない場合は基準点を
+    そのままターゲットにする（フォールバック）
 """
 
 from src.character.ghost import Ghost
@@ -19,19 +23,31 @@ class Inky(Ghost):
     def determine_direction(
         self,
         pacman: Pacman,
-        maze_data: list[list[int]]
+        maze_data: list[list[int]],
+        ghosts: list[Ghost]
     ) -> Direction:
 
-        target_x, target_y = pacman.get_current_grid()
+        pivot_x, pivot_y = pacman.get_current_grid()
         if pacman.direction == Direction.UP:
-            target_x -= 2
-            target_y -= 2
+            pivot_x -= 2
+            pivot_y -= 2
         elif pacman.direction == Direction.DOWN:
-            target_y += 2
+            pivot_y += 2
         elif pacman.direction == Direction.LEFT:
-            target_x -= 2
+            pivot_x -= 2
         elif pacman.direction == Direction.RIGHT:
-            target_x += 2
+            pivot_x += 2
+
+        blinky = next(
+            (g for g in ghosts if g.type == GhostType.BLINKY), None
+        )
+        if blinky is not None:
+            blinky_x, blinky_y = blinky.get_current_grid()
+            target_x = 2 * pivot_x - blinky_x
+            target_y = 2 * pivot_y - blinky_y
+        else:
+            target_x, target_y = pivot_x, pivot_y
+
         available_directions = self.get_available_directions(maze_data)
         return self.decide_next_direction(
             available_directions, target_x, target_y

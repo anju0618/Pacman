@@ -21,6 +21,13 @@
 - [x] 外部迷路生成パッケージ（A-Maze-ing）のローダー実装（`perfect=False` 対応）と単体テスト
 - [x] プロジェクト管理の土台作成（Git履歴の管理、カンバン、ガントチャートの雛形作成）
 - [x] パックマンの4方向移動・壁判定・キー入力（`Character.move_forward`, `pac-man.py`のpygameループ）の基礎実装（2026-08-10）
+- [x] 矢印キーに加えWASDでの移動入力に対応（`display.py`のイベント処理、takawaka実装・2026-08-10）
+- [x] 4匹のゴースト（Blinky/Pinky/Inky/Clyde）のクラス実装と、四隅からの出現・ゲームループへの統合（`display.py`でのゴースト生成・`update`呼び出し・描画、2026-08-10）
+- [x] Config駆動のレベル進行システム（`DEFAULT_LEVELS`による最低10レベルの補完、`Display.advance_to_next_level`でのレベル遷移、`level`をdict形式で保持、takawaka実装・2026-08-10）
+- [x] ゴーストAIのバグ修正一式（2026-08-10、Claude Codeによるレビュー・修正）
+  - パックマンが静止している時、ゴーストが迷路内の小さなループ通路を無限に周回し続けて「行ったり来たり」に見えるバグを修正。原因は(1)`Ghost.update`が毎フレームAI判断をやり直していたため交差点でない場所でも判断が揺れ動いていたこと、(2)直線距離だけで進む先を決める貪欲法が、目的地が動かないと小さな環状通路を永久にループしてしまう性質を持っていたこと。(1)は「新しいマスに入った時だけ判断する」ように変更、(2)は直近に通ったマスへは行き止まりでない限り戻らないようにする短期記憶を追加して解消（`src/character/ghost.py`）
+  - Inky（水色）のターゲット計算が本家Wikiの仕様と異なっていたバグを修正。旧実装は「パックマン前方2マスの基準点」をそのままターゲットにしていたが、本家は「Blinkyの現在地から基準点へのベクトルを2倍延長した先のマス」（`target = 2 * pivot - blinky_pos`）が正しい仕様。Blinkyの位置を参照できるよう`Ghost.update`/`determine_direction`のシグネチャに`ghosts`（全ゴーストのリスト）を追加し、Inkyがその中からBlinkyを検索して計算するよう修正（`src/character/inky.py`、`specification/specification_original.md`は元々正しい記述だったため今回はコード側を仕様に合わせた）
+  - 上記の回帰テストを追加（`tests/test_ghost.py`）
 
 ---
 
@@ -42,16 +49,18 @@
 
 ### 4. ゲームプレイ・ロジック（プレイヤー＆迷路）
 - [x] プレイヤーの4方向移動・壁判定（`Character.move_forward`、Uターン許容ロジック含む）
+- [x] 複数レベル（Configで指定、最低10レベルに自動補完）の進行の土台（`Display.advance_to_next_level`、takawaka実装）
 - [ ] ワープトンネルの処理（迷路端での折り返し）※未実装、現状は端も壁扱い
 - [ ] パグム（小ドット）とスーパーパグム（パワーペレット）の配置・回収・スコア加算処理（未着手、`add_score`の呼び出し元がまだない）
-- [ ] レベルクリアおよびゲームクリア判定、複数レベル（最低10レベル・制限時間管理）の進行システム
+- [ ] レベルクリア判定（`Display.is_cleared`が常に`False`固定で未実装）と制限時間管理
 
 ### 5. ゴーストAIとキャラクター挙動
 - [x] Blinky（追跡ゴースト）のターゲット計算・方向決定ロジック（`Ghost`基底クラス＋`Blinky.determine_direction`）
-- [ ] Blinky以外の3匹（Pinky/Inky/Clyde）のクラス実装
-- [ ] ゴーストのゲームループへの統合（`display.py`にまだ1体も生成・描画されていない）
-- [ ] 4匹のゴーストの四隅からの出現ロジック
-- [ ] 追跡モード（Chase）／縄張り巡回（Scatter）／イジケモード（Frightened：スーパーパグム吃食後）／リスポーン（Eaten）の切り替えAI（現状`GhostMode`はSCATTER固定）
+- [x] Blinky以外の3匹（Pinky/Inky/Clyde）のクラス実装（Pinky: takawaka実装、Clyde: Anjou実装、Inkyのターゲット計算は2026-08-10にClaude Codeが本家Wiki仕様に合わせて修正）
+- [x] ゴーストのゲームループへの統合（`display.py`で4体を生成・`update`・描画）
+- [x] 4匹のゴーストの四隅からの出現ロジック（`MazeLoader.find_corner_positions`）
+- [x] ゴーストAIの判断タイミングを「新しいマスに入った瞬間」に限定し、直近訪問マスへの回帰を避ける短期記憶を追加（無限ループ・振動対策、2026-08-10）
+- [ ] 追跡モード（Chase）／縄張り巡回（Scatter）／イジケモード（Frightened：スーパーパグム吃食後）／リスポーン（Eaten）の切り替えAI（現状`GhostMode`はSCATTER固定で未切り替え）
 - [ ] ゴーストとプレイヤーの接触判定（残機減少、中央リスポーン、ゲームオーバー判定）
 
 ### 6. チートモード
