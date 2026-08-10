@@ -27,9 +27,9 @@ class Ghost(Character):
         maze_data: list[list[int]]
     ) -> list[Direction]:
         """
-        壁ではない方向のリストを返す。
+        壁ではない方向のリストを返す
         来た道（現在の進行方向の逆）は、行き止まりでない限り除外する
-        （本家のUターン禁止ルール）。
+        （本家のUターン禁止ルール）
         """
         opposite = self._opposite_direction(self.direction)
         open_directions = []
@@ -72,7 +72,6 @@ class Ghost(Character):
 
             elif distance_sq == shortest_distance:
                 # 距離が同じ場合は、優先順位（上 > 左 > 下 > 右）タイブレーカー
-                # pinkyのバグはこれ由来？
                 best_direction = self._tie_breaker(best_direction, direction)
 
         return best_direction
