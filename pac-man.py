@@ -2,13 +2,18 @@
 import argparse
 from src.parse import Parsing
 from src.game_state import PacmanGameContext
+from src.graphic.display import Display
 
 
 def main() -> None:
 
     parser = argparse.ArgumentParser(description="packman")
-    parser.add_argument("config", help="config file name")
-    parser.add_argument("--cheat", action="store_true", help="can not be dameged")
+    parser.add_argument(
+        "config", help="config file name"
+        )
+    parser.add_argument(
+        "--cheat", action="store_true", help="can not be dameged"
+        )
 
     args = parser.parse_args()
 
@@ -22,6 +27,8 @@ def main() -> None:
         is_cheat_mode_active=args.cheat
     )
 
+    display = Display(config)
+    display.run()
     print(f"残機: {game_context.lives}, 制限時間: {game_context.time_remaining}")
     if game_context.is_cheat_mode_active:
         print("チートモード有効")

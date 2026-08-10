@@ -10,6 +10,7 @@ from src.character.pinky import Pinky
 from src.character.inky import Inky
 from src.character.clyde import Clyde
 from src.enums import Direction
+from src.parse import Config, DEFAULT_LEVELS
 
 GHOST_COLORS: dict[type, tuple[int, int, int]] = {
     Blinky: (255, 0, 0),
@@ -21,21 +22,30 @@ GHOST_COLORS: dict[type, tuple[int, int, int]] = {
 
 class Display:
 
-    def __init__(
-        self,
-        maze_width: int = 28,
-        maze_height: int = 31,
-        level: int = 1
-    ) -> None:
+    def __init__(self, config: Config) -> None:
         pygame.init()
 
-        # 最初のレベルのみ固定シード、以降はランダム
+        self.config = config
+        self.levels = list(config.level) or [DEFAULT_LEVELS[0].copy()]
+        self.current_level_index = 0
+        self.current_level = self.levels[0]["id"]
+        self.game_cleared = False
+        self.cell_size = 20
+
+        self._load_level()
+        self.clock = pygame.time.Clock()
+
+    def _load_level(self) -> None:
+        level = self.levels[self.current_level_index]
+
+        # 最初のレベルは設定されたシード、それ以降はランダムに生成する。
         # （MazeGenerator は seed<=0 のとき random.seed() で真の乱数を使う）
-        seed = 42 if level == 1 else 0
+        seed = self.config.seed if self.current_level_index == 0 else 0
         self.maze_loader = MazeLoader(
-            width=maze_width, height=maze_height, seed=seed
+            width=level["width"], height=level["height"], seed=seed
         )
         self.maze_data = self.maze_loader.get_binary_grid()
+        self.current_level = level["id"]
 
         start_x, start_y = self.maze_loader.find_center_start_position()
         self.pacman = Pacman(float(start_x), float(start_y))
@@ -48,14 +58,26 @@ class Display:
             in zip(ghost_classes, corners)
         ]
 
-        self.cell_size = 20
-
         screen_width = len(self.maze_data[0]) * self.cell_size
         screen_height = len(self.maze_data) * self.cell_size
         self.screen = pygame.display.set_mode((screen_width, screen_height))
 
-        pygame.display.set_caption("Pac-Man")
-        self.clock = pygame.time.Clock()
+        pygame.display.set_caption(f"Pac-Man - Level {self.current_level}")
+
+    def is_cleared(self) -> bool:
+        """現在のレベルがクリアされたかを返す。クリア条件は未実装。"""
+        return False
+
+    def advance_to_next_level(self) -> bool:
+        """クリア判定後にConfigの次の迷路へ進む。"""
+        next_level_index = self.current_level_index + 1
+        if next_level_index >= len(self.levels):
+            self.game_cleared = True
+            return False
+
+        self.current_level_index = next_level_index
+        self._load_level()
+        return True
 
     def run(self) -> None:
         """
@@ -95,6 +117,12 @@ class Display:
                         pygame.draw.rect(self.screen, (0, 0, 255), rect)
 
             self.pacman.update(self.maze_data)
+
+            if self.is_cleared():
+                if not self.advance_to_next_level():
+                    running = False
+                continue
+
             pac_px = int(self.pacman.x * self.cell_size + self.cell_size / 2)
             pac_py = int(self.pacman.y * self.cell_size + self.cell_size / 2)
             # 当たり判定(self.pacman.radius)と同じ半径で描くことで、
@@ -121,5 +149,5 @@ class Display:
 
 
 if __name__ == "__main__":
-    game_display = Display()
+    game_display = Display(Config())
     game_display.run()

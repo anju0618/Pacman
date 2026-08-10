@@ -1,14 +1,32 @@
 import json
 import re
-from typing import Annotated, TypedDict
+from typing import Annotated, Self, TypedDict
 
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, ValidationError, model_validator
 
 
 class Level(TypedDict):
     id: Annotated[int, Field(ge=1)]
     width: Annotated[int, Field(ge=1)]
     height: Annotated[int, Field(ge=1)]
+
+
+DEFAULT_LEVELS: tuple[Level, ...] = (
+    {"id": 1, "width": 21, "height": 21},
+    {"id": 2, "width": 25, "height": 25},
+    {"id": 3, "width": 31, "height": 31},
+    {"id": 4, "width": 31, "height": 31},
+    {"id": 5, "width": 31, "height": 31},
+    {"id": 6, "width": 31, "height": 31},
+    {"id": 7, "width": 31, "height": 31},
+    {"id": 8, "width": 31, "height": 31},
+    {"id": 9, "width": 31, "height": 31},
+    {"id": 10, "width": 31, "height": 31},
+)
+
+
+def _default_levels() -> list[Level]:
+    return [level.copy() for level in DEFAULT_LEVELS]
 
 
 class Config(BaseModel):
@@ -23,7 +41,16 @@ class Config(BaseModel):
     points_per_super_pacgum: int = Field(default=50, ge=0)
     points_per_ghost: int = Field(default=200, ge=0)
 
-    level: list[Level] = Field(default_factory=list)
+    level: list[Level] = Field(default_factory=_default_levels)
+
+    @model_validator(mode="after")
+    def ensure_minimum_levels(self) -> Self:
+        missing_count = len(DEFAULT_LEVELS) - len(self.level)
+        if missing_count > 0:
+            self.level.extend(
+                level.copy() for level in DEFAULT_LEVELS[-missing_count:]
+            )
+        return self
 
 
 class Parsing:
