@@ -1,4 +1,5 @@
-# tests/test_ghost.py
+from unittest.mock import patch
+
 from src.character.blinky import Blinky
 from src.character.clyde import Clyde
 from src.character.inky import Inky
@@ -8,9 +9,101 @@ from src.enums import Direction
 from src.maze_loader import MazeLoader
 
 
+def test_ghost_speed_is_80_percent_of_pacman_speed() -> None:
+    pacman = Pacman(0.0, 0.0)
+    ghost = Blinky(0.0, 0.0)
+
+    assert ghost.speed == pacman.speed * 0.8
+
+
+def test_ghost_treats_missing_ragged_cells_as_walls() -> None:
+    ghost = Blinky(0.0, 1.0)
+    maze_data = [[1, 1], []]
+
+    assert ghost.get_available_directions(maze_data) == []
+
+
+def test_blinky_uses_bfs_to_avoid_a_dead_end() -> None:
+    maze_data = [
+        [1, 1, 1, 1, 1, 1, 1],
+        [1, 0, 0, 1, 0, 0, 1],
+        [1, 0, 1, 1, 0, 1, 1],
+        [1, 0, 0, 0, 0, 1, 1],
+        [1, 1, 1, 1, 1, 1, 1],
+    ]
+    blinky = Blinky(1.0, 1.0)
+    pacman = Pacman(5.0, 1.0)
+
+    direction = blinky.determine_direction(pacman, maze_data, [blinky])
+
+    assert direction == Direction.DOWN
+
+
+def test_blinky_prefers_going_straight_when_bfs_paths_are_equal() -> None:
+    maze_data = [
+        [1, 1, 1, 1, 1],
+        [1, 0, 0, 0, 1],
+        [1, 0, 0, 0, 1],
+        [1, 0, 0, 0, 1],
+        [1, 1, 1, 1, 1],
+    ]
+    blinky = Blinky(1.0, 1.0)
+    pacman = Pacman(3.0, 3.0)
+
+    direction = blinky.determine_direction(pacman, maze_data, [blinky])
+
+    assert direction == Direction.RIGHT
+
+
+def test_all_ghosts_use_shared_bfs_direction_selection() -> None:
+    maze_data = [[0] * 7 for _ in range(7)]
+    pacman = Pacman(3.0, 3.0)
+    ghosts = [
+        Blinky(1.0, 1.0),
+        Pinky(1.0, 1.0),
+        Inky(1.0, 1.0),
+        Clyde(1.0, 1.0),
+    ]
+
+    for ghost in ghosts:
+        with patch.object(
+            ghost,
+            "decide_next_direction_bfs",
+            wraps=ghost.decide_next_direction_bfs
+        ) as decide_direction:
+            ghost.determine_direction(pacman, maze_data, ghosts)
+
+        assert decide_direction.call_count == 1
+
+
+def test_inky_corrects_invalid_target_before_bfs() -> None:
+    maze_data = [
+        [1, 1, 1, 1, 1, 1, 1],
+        [1, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 1],
+        [1, 1, 1, 1, 1, 1, 1],
+    ]
+    inky = Inky(1.0, 1.0)
+    pacman = Pacman(2.0, 2.0)
+    pacman.direction = Direction.RIGHT
+    blinky = Blinky(1.0, 2.0)
+
+    with patch.object(
+        inky,
+        "decide_next_direction",
+        wraps=inky.decide_next_direction
+    ) as fallback:
+        inky.determine_direction(pacman, maze_data, [blinky, inky])
+
+    # target=(7,2) is outside the maze; the nearest open cell is (5,2).
+    assert inky._bfs_target == (5, 2)
+    assert fallback.call_count == 0
+
+
 def test_ghosts_reach_a_stationary_pacman_without_looping_forever() -> None:
     """
-    パックマンが静止していても、貪欲法のゴーストAIが迷路内の小さな輪っか
+    パックマンが静止していても、ゴーストAIが迷路内の小さな輪っか
     状の通路を無限に周回し続けて、いつまでもパックマンに到達できない
     （＝行ったり来たりに見える）バグの回帰テスト。
     レベル1固定シード(42)の迷路では、四隅から出発した4匹全員が

@@ -8,13 +8,14 @@
 ピンキー作った
 0810 amakino Clyde実装、display.pyにゴースト4体を統合（四隅出現・毎フレームupdate・描画）
 0810 takawaka WASD移動対応、Configでレベルごとの幅・高さを指定できるレベル進行の仕組みを追加（DEFAULT_LEVELSで最低10レベルに自動補完、Display.advance_to_next_levelでレベル遷移）
+0812 takawaka ghostの動きを改善し個性に合わせしっかりと追跡するようにした。pacmanの動きを改善
 
 
 ```mermaid
 gantt
     title Packman Project Timeline - Member Work Division & Tasks
     dateFormat  YYYY-MM-DD
-    
+
     section Anjou Makino (amakino)
     Project Setup (uv, toml, Makefile) :done, a1, 2026-08-06, 2026-08-06
     Specification & Research           :done, a2, 2026-08-06, 2026-08-06

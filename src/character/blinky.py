@@ -22,6 +22,6 @@ class Blinky(Ghost):
     ) -> Direction:
         target_x, target_y = pacman.get_current_grid()
         available_directions = self.get_available_directions(maze_data)
-        return self.decide_next_direction(
-            available_directions, target_x, target_y
+        return self.decide_next_direction_bfs(
+            available_directions, maze_data, target_x, target_y
         )
