@@ -20,6 +20,8 @@ def test_display_advances_to_next_configured_level(
     try:
         assert display.current_level == 1
         assert len(display.maze_data) == 11
+        assert display.cell_size == 30
+        assert display.screen.get_size() == (330, 330)
         assert len(config.level) == 10
         assert not display.is_cleared()
 

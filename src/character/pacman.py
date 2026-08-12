@@ -6,6 +6,9 @@ from src.enums import Direction
 
 
 class Pacman(Character):
+    # 角を少し内側へ切り込み、Ghostより小さい旋回半径にする
+    CORNER_CUT_DISTANCE = 0.08
+
     def __init__(self, x: float, y: float) -> None:
         super().__init__(x, y)
         self.direction = Direction.RIGHT

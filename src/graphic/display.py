@@ -30,7 +30,7 @@ class Display:
         self.current_level_index = 0
         self.current_level = self.levels[0]["id"]
         self.game_cleared = False
-        self.cell_size = 20
+        self.cell_size = 30
 
         self._load_level()
         self.clock = pygame.time.Clock()

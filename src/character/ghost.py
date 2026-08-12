@@ -20,6 +20,7 @@ class Ghost(Character):
         ghost_type: GhostType
     ) -> None:
         super().__init__(start_x, start_y)
+        self.speed *= 0.8
         self.type: GhostType = ghost_type
         # default mode == SCATTER
         self.mode: GhostMode = GhostMode.SCATTER
@@ -28,11 +29,12 @@ class Ghost(Character):
         # 静止している時に強制Uターン地点で判断がすぐ覆り、行ったり来たり
         # 振動してしまう）
         self._decided_grid: tuple[int, int] | None = None
-        # 直近に通過したマスの履歴（直進距離だけで進行方向を決める貪欲法は、
-        # 目的地が動かないと迷路内の小さな輪っか状の通路をぐるぐる無限に
-        # 周回してしまうことがある＝行ったり来たり振動して見える原因。
-        # 直近に通ったマスへは行き止まりでない限り戻らないようにして防ぐ）
+        # 直近に通過したマスの履歴（交差点で来た道へ戻ることを抑え、
+        # 本家のUターン禁止と行ったり来たりの防止を維持する）
         self._recent_cells: deque[tuple[int, int]] = deque(maxlen=12)
+        self._bfs_target: tuple[int, int] | None = None
+        self._bfs_maze: list[list[int]] | None = None
+        self._bfs_distances: dict[tuple[int, int], int] = {}
 
     def determine_direction(
         self,
@@ -71,12 +73,15 @@ class Ghost(Character):
         """
         opposite = self._opposite_direction(self.direction)
         open_directions = []
+        current_grid = self.get_current_grid()
 
         for direction in Direction:
-            next_x, next_y = self._get_next_grid_coords(direction)
+            next_x, next_y = self._get_neighbor_grid(
+                current_grid, direction
+            )
             if (
                 0 <= next_y < len(maze_data)
-                and 0 <= next_x < len(maze_data[0])
+                and 0 <= next_x < len(maze_data[next_y])
                 and maze_data[next_y][next_x] == 0
             ):
                 open_directions.append(direction)
@@ -87,9 +92,151 @@ class Ghost(Character):
 
         unvisited = [
             d for d in non_reverse
-            if self._get_next_grid_coords(d) not in self._recent_cells
+            if self._get_neighbor_grid(current_grid, d)
+            not in self._recent_cells
         ]
         return unvisited if unvisited else non_reverse
+
+    def decide_next_direction_bfs(
+        self,
+        available_directions: list[Direction],
+        maze_data: list[list[int]],
+        target_x: int,
+        target_y: int
+    ) -> Direction:
+        """ターゲットまでのBFS最短経路から次の方向を選ぶ"""
+        target = self._correct_target_to_open_cell(
+            maze_data, (target_x, target_y)
+        )
+        if target is None:
+            return self.decide_next_direction(
+                available_directions, target_x, target_y
+            )
+
+        distances = self._get_bfs_distances(maze_data, target)
+        bfs_direction = self._select_bfs_direction(
+            available_directions, distances
+        )
+        if bfs_direction is not None:
+            return bfs_direction
+
+        # ターゲットとゴーストが別の領域にいる場合は補正先を使う
+        return self.decide_next_direction(
+            available_directions, target[0], target[1]
+        )
+
+    def _correct_target_to_open_cell(
+        self,
+        maze_data: list[list[int]],
+        target: tuple[int, int]
+    ) -> tuple[int, int] | None:
+        """壁・迷路外のターゲットを最寄りの通路マスへ補正する"""
+        if self._is_open_cell(maze_data, target):
+            return target
+
+        nearest_target: tuple[int, int] | None = None
+        nearest_distance = float("inf")
+        target_x, target_y = target
+
+        for y, row in enumerate(maze_data):
+            for x, cell in enumerate(row):
+                if cell != 0:
+                    continue
+
+                distance = (x - target_x) ** 2 + (y - target_y) ** 2
+                if distance < nearest_distance:
+                    nearest_distance = distance
+                    nearest_target = x, y
+
+        return nearest_target
+
+    def _get_bfs_distances(
+        self,
+        maze_data: list[list[int]],
+        target: tuple[int, int]
+    ) -> dict[tuple[int, int], int]:
+        """ターゲットから各通路マスまでの距離をBFSで求める"""
+        if self._bfs_target == target and self._bfs_maze is maze_data:
+            return self._bfs_distances
+
+        distances: dict[tuple[int, int], int] = {}
+        if self._is_open_cell(maze_data, target):
+            distances[target] = 0
+            queue: deque[tuple[int, int]] = deque([target])
+
+            while queue:
+                current = queue.popleft()
+                current_distance = distances[current]
+
+                for direction in Direction:
+                    neighbor = self._get_neighbor_grid(current, direction)
+                    if (
+                        self._is_open_cell(maze_data, neighbor)
+                        and neighbor not in distances
+                    ):
+                        distances[neighbor] = current_distance + 1
+                        queue.append(neighbor)
+
+        self._bfs_target = target
+        self._bfs_maze = maze_data
+        self._bfs_distances = distances
+        return distances
+
+    def _select_bfs_direction(
+        self,
+        available_directions: list[Direction],
+        distances: dict[tuple[int, int], int]
+    ) -> Direction | None:
+        """最短方向を選ぶ。同距離なら現在の進行方向を優先する"""
+        best_direction: Direction | None = None
+        shortest_distance = float("inf")
+        current_grid = self.get_current_grid()
+
+        for direction in available_directions:
+            neighbor = self._get_neighbor_grid(current_grid, direction)
+            distance = distances.get(neighbor)
+            if distance is None:
+                continue
+
+            if distance < shortest_distance:
+                shortest_distance = distance
+                best_direction = direction
+            elif (
+                distance == shortest_distance
+                and best_direction is not None
+            ):
+                if direction == self.direction:
+                    best_direction = direction
+                elif best_direction != self.direction:
+                    best_direction = self._tie_breaker(
+                        best_direction, direction
+                    )
+
+        return best_direction
+
+    @staticmethod
+    def _get_neighbor_grid(
+        grid: tuple[int, int], direction: Direction
+    ) -> tuple[int, int]:
+        x, y = grid
+        if direction == Direction.UP:
+            return x, y - 1
+        if direction == Direction.DOWN:
+            return x, y + 1
+        if direction == Direction.LEFT:
+            return x - 1, y
+        return x + 1, y
+
+    @staticmethod
+    def _is_open_cell(
+        maze_data: list[list[int]], grid: tuple[int, int]
+    ) -> bool:
+        x, y = grid
+        return (
+            0 <= y < len(maze_data)
+            and 0 <= x < len(maze_data[y])
+            and maze_data[y][x] == 0
+        )
 
     def decide_next_direction(
         self,
@@ -106,9 +253,12 @@ class Ghost(Character):
 
         best_direction: Direction = available_directions[0]
         shortest_distance: float = float('inf')
+        current_grid = self.get_current_grid()
 
         for direction in available_directions:
-            next_x, next_y = self._get_next_grid_coords(direction)
+            next_x, next_y = self._get_neighbor_grid(
+                current_grid, direction
+            )
             distance_sq = (next_x - target_x) ** 2 + (next_y - target_y) ** 2
 
             if distance_sq < shortest_distance:
@@ -120,19 +270,6 @@ class Ghost(Character):
                 best_direction = self._tie_breaker(best_direction, direction)
 
         return best_direction
-
-    def _get_next_grid_coords(self, direction: Direction) -> tuple[int, int]:
-        """指定した方向に1マス進んだ場合のグリッド座標を返す"""
-        current_x, current_y = self.get_current_grid()
-        if direction == Direction.UP:
-            return current_x, current_y - 1
-        elif direction == Direction.DOWN:
-            return current_x, current_y + 1
-        elif direction == Direction.LEFT:
-            return current_x - 1, current_y
-        elif direction == Direction.RIGHT:
-            return current_x + 1, current_y
-        return current_x, current_y
 
     def _opposite_direction(self, direction: Direction) -> Direction:
         opposite_of = {
