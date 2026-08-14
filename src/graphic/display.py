@@ -10,6 +10,7 @@ from src.character.pinky import Pinky
 from src.character.inky import Inky
 from src.character.clyde import Clyde
 from src.enums import Direction
+from src.game_state import PacmanGameContext
 from src.parse import Config, DEFAULT_LEVELS
 
 GHOST_COLORS: dict[type, tuple[int, int, int]] = {
@@ -22,11 +23,12 @@ GHOST_COLORS: dict[type, tuple[int, int, int]] = {
 
 class Display:
 
-    def __init__(self, config: Config) -> None:
+    def __init__(self, game_context: PacmanGameContext) -> None:
         pygame.init()
 
-        self.config = config
-        self.levels = list(config.level) or [DEFAULT_LEVELS[0].copy()]
+        self.game_context = game_context
+        self.config = game_context.config
+        self.levels = list(self.config.level) or [DEFAULT_LEVELS[0].copy()]
         self.current_level_index = 0
         self.current_level = self.levels[0]["id"]
         self.game_cleared = False
@@ -149,5 +151,7 @@ class Display:
 
 
 if __name__ == "__main__":
-    game_display = Display(Config())
+    config = Config()
+    game_context = PacmanGameContext(config=config)
+    game_display = Display(game_context)
     game_display.run()

@@ -27,7 +27,7 @@ def main() -> None:
         is_cheat_mode_active=args.cheat
     )
 
-    display = Display(config)
+    display = Display(game_context)
     display.run()
     print(f"残機: {game_context.lives}, 制限時間: {game_context.time_remaining}")
     if game_context.is_cheat_mode_active:
