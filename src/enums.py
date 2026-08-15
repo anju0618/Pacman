@@ -8,6 +8,8 @@ from enum import Enum, auto
 class GameState(Enum):
     """ゲーム全体の進行状態を管理する"""
     MAIN_MENU = auto()
+    HIGHSCORES = auto()
+    INSTRUCTIONS = auto()
     IN_GAME = auto()
     PAUSED = auto()
     LEVEL_CLEARED = auto()
