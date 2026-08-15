@@ -11,17 +11,30 @@ class Level(TypedDict):
     height: Annotated[int, Field(ge=1)]
 
 
+# DEFAULT_LEVELS: tuple[Level, ...] = (
+#     {"id": 1, "width": 21, "height": 21},
+#     {"id": 2, "width": 25, "height": 25},
+#     {"id": 3, "width": 31, "height": 31},
+#     {"id": 4, "width": 31, "height": 31},
+#     {"id": 5, "width": 31, "height": 31},
+#     {"id": 6, "width": 31, "height": 31},
+#     {"id": 7, "width": 31, "height": 31},
+#     {"id": 8, "width": 31, "height": 31},
+#     {"id": 9, "width": 31, "height": 31},
+#     {"id": 10, "width": 31, "height": 31},
+# )
+
 DEFAULT_LEVELS: tuple[Level, ...] = (
-    {"id": 1, "width": 21, "height": 21},
-    {"id": 2, "width": 25, "height": 25},
-    {"id": 3, "width": 31, "height": 31},
-    {"id": 4, "width": 31, "height": 31},
-    {"id": 5, "width": 31, "height": 31},
-    {"id": 6, "width": 31, "height": 31},
-    {"id": 7, "width": 31, "height": 31},
-    {"id": 8, "width": 31, "height": 31},
-    {"id": 9, "width": 31, "height": 31},
-    {"id": 10, "width": 31, "height": 31},
+    {"id": 1, "width": 10, "height": 10},
+    {"id": 2, "width": 10, "height": 10},
+    {"id": 3, "width": 10, "height": 10},
+    {"id": 4, "width": 11, "height": 11},
+    {"id": 5, "width": 11, "height": 11},
+    {"id": 6, "width": 11, "height": 11},
+    {"id": 7, "width": 11, "height": 11},
+    {"id": 8, "width": 11, "height": 11},
+    {"id": 9, "width": 11, "height": 11},
+    {"id": 10, "width": 11, "height": 11}
 )
 
 

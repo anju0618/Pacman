@@ -8,7 +8,7 @@
   "seed": 42,
   "lives": 3,
   "level_max_time": 90,
-  
+
   # ==========================================
   # Entity Scores & Settings
   # ==========================================
@@ -23,18 +23,18 @@
   "level": [
     {
       "id": 1,
-      "width": 21,
-      "height": 21
+      "width": 9,
+      "height": 9
     },
     {
       "id": 2,
-      "width": 25,
-      "height": 25
+      "width": 10,
+      "height": 10
     },
     {
       "id": 3,
-      "width": 31,
-      "height": 31
+      "width": 11,
+      "height": 11
     }
   ]
 }
