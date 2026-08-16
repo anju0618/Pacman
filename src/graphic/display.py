@@ -12,6 +12,7 @@ from src.character.clyde import Clyde
 from src.enums import Direction, GameState
 from src.game_state import PacmanGameContext
 from src.highscore import HighScoreSystem
+from src.pacgum import Pacgum, PacgumKind
 from src.parse import Config, DEFAULT_LEVELS
 
 GHOST_COLORS: dict[type, tuple[int, int, int]] = {
@@ -88,6 +89,13 @@ class Display:
             for ghost_cls, (corner_x, corner_y)
             in zip(ghost_classes, corners)
         ]
+
+        self.pacgum = Pacgum(
+            maze_data=self.maze_data,
+            super_positions=corners,
+            excluded_positions=[(start_x, start_y)],
+            count=self.config.pacgum,
+        )
 
         screen_width = len(self.maze_data[0]) * self.cell_size
         screen_height = len(self.maze_data) * self.cell_size
@@ -327,6 +335,23 @@ class Display:
                     self.input_error, 260, (255, 80, 80), self.small_font
                 )
 
+    def _draw_pacgums(self) -> None:
+        normal_radius = max(1, int(self.cell_size * 0.08))
+        for x, y in self.pacgum.normal_positions:
+            px = x * self.cell_size + self.cell_size // 2
+            py = y * self.cell_size + self.cell_size // 2
+            pygame.draw.circle(
+                self.screen, (255, 220, 170), (px, py), normal_radius
+            )
+
+        super_radius = max(1, int(self.cell_size * 0.22))
+        for x, y in self.pacgum.super_positions:
+            px = x * self.cell_size + self.cell_size // 2
+            py = y * self.cell_size + self.cell_size // 2
+            pygame.draw.circle(
+                self.screen, (255, 220, 170), (px, py), super_radius
+            )
+
     def _render_game(self) -> None:
         self.screen.fill((0, 0, 0))
 
@@ -343,9 +368,17 @@ class Display:
 
         self.pacman.update(self.maze_data)
 
+        collected = self.pacgum.collect(self.pacman.get_current_grid())
+        if collected == PacgumKind.NORMAL:
+            self.game_context.add_score(self.config.points_per_pacgum)
+        elif collected == PacgumKind.SUPER:
+            self.game_context.add_score(self.config.points_per_super_pacgum)
+
         if self.is_cleared():
             self.advance_to_next_level()
             return
+
+        self._draw_pacgums()
 
         pac_px = int(self.pacman.x * self.cell_size + self.cell_size / 2)
         pac_py = int(self.pacman.y * self.cell_size + self.cell_size / 2)
