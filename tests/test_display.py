@@ -27,8 +27,8 @@ def test_display_advances_to_next_configured_level(
         assert display.game_context is game_context
         assert display.current_level == 1
         assert len(display.maze_data) == 11
-        assert display.cell_size == 30
-        assert display.screen.get_size() == (330, 330)
+        assert display.cell_size == 45
+        assert display.screen.get_size() == (495, 495)
         assert len(config.level) == 10
         assert not display.is_cleared()
 
@@ -54,14 +54,14 @@ def test_display_scales_large_maze_to_window_limit(
 ) -> None:
     monkeypatch.setenv("SDL_VIDEODRIVER", "dummy")
     config = Config(
-        level=[{"id": 1, "width": 21, "height": 21}],
+        level=[{"id": 1, "width": 45, "height": 45}],
     )
     game_context = PacmanGameContext(config=config)
     display = Display(game_context)
     try:
-        assert len(display.maze_data) == 43
-        assert display.cell_size == 18
-        assert display.screen.get_size() == (774, 774)
+        assert len(display.maze_data) == 91
+        assert display.cell_size == 21
+        assert display.screen.get_size() == (1911, 1911)
     finally:
         pygame.quit()
 
