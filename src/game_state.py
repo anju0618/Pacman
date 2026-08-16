@@ -19,12 +19,16 @@ class PacmanGameContext:
     time_remaining: float = 90.0  # デフォルトの時間制限
     is_cheat_mode_active: bool = False  # チートモードのフラグ
 
+    CHEAT_EXTRA_LIVES = 2
+
     def reset_for_new_game(self) -> None:
         """新規ゲーム開始時にconfigからロード"""
         self.state = GameState.IN_GAME
         self.current_level = 1
         self.score = 0
         self.lives = self.config.lives
+        if self.is_cheat_mode_active:
+            self.lives += self.CHEAT_EXTRA_LIVES
         self.time_remaining = self.config.level_max_time
 
     def lose_life(self) -> None:

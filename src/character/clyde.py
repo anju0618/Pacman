@@ -15,9 +15,6 @@ class Clyde(Ghost):
 
     def __init__(self, start_x: float, start_y: float) -> None:
         super().__init__(start_x, start_y, GhostType.CLYDE)
-        self.scatter_grid: tuple[int, int] = (
-            int(start_x + 0.5), int(start_y + 0.5)
-        )
 
     def determine_direction(
         self,
@@ -32,7 +29,7 @@ class Clyde(Ghost):
         if distance_sq >= self.SHY_DISTANCE ** 2:
             target_x, target_y = pacman_x, pacman_y
         else:
-            target_x, target_y = self.scatter_grid
+            target_x, target_y = self.home_position
 
         available_directions = self.get_available_directions(maze_data)
         return self.decide_next_direction_bfs(

@@ -1,6 +1,7 @@
 """
 Module defining the ghost characters and their AI.
 """
+import random
 from collections import deque
 from src.enums import Direction, GhostMode, GhostType
 from src.character.base import Character
@@ -13,6 +14,9 @@ class Ghost(Character):
     4匹ごと違う
     """
 
+    FRIGHTENED_SPEED_FACTOR = 0.5
+    EATEN_SPEED_FACTOR = 2.0
+
     def __init__(
         self,
         start_x: float,
@@ -21,9 +25,13 @@ class Ghost(Character):
     ) -> None:
         super().__init__(start_x, start_y)
         self.speed *= 0.8
+        self.base_speed: float = self.speed
         self.type: GhostType = ghost_type
-        # default mode == SCATTER
-        self.mode: GhostMode = GhostMode.SCATTER
+        # モードコントローラ（Display側）が管理しない限りは常にCHASE。
+        # SCATTER/FRIGHTENED/EATENへはset_mode()経由でのみ遷移する。
+        self.mode: GhostMode = GhostMode.CHASE
+        # SCATTER/EATEN時の帰還先（自分が出現した四隅のマス）
+        self.home_position: tuple[int, int] = self.get_current_grid()
         # 直近に方向決定を行ったマス（本家同様、方向転換は交差点＝マスに
         # 侵入した瞬間だけ判断する。毎フレーム再計算すると、パックマンが
         # 静止している時に強制Uターン地点で判断がすぐ覆り、行ったり来たり
@@ -35,6 +43,20 @@ class Ghost(Character):
         self._bfs_target: tuple[int, int] | None = None
         self._bfs_maze: list[list[int]] | None = None
         self._bfs_distances: dict[tuple[int, int], int] = {}
+
+    def set_mode(self, mode: GhostMode) -> None:
+        """モードを切り替え、速度と（必要なら）向きを追従させる"""
+        if mode == self.mode:
+            return
+        self.mode = mode
+        self._decided_grid = None
+        if mode == GhostMode.FRIGHTENED:
+            self.speed = self.base_speed * self.FRIGHTENED_SPEED_FACTOR
+            self.direction = self._opposite_direction(self.direction)
+        elif mode == GhostMode.EATEN:
+            self.speed = self.base_speed * self.EATEN_SPEED_FACTOR
+        else:
+            self.speed = self.base_speed
 
     def determine_direction(
         self,
@@ -57,10 +79,38 @@ class Ghost(Character):
         if current_grid != self._decided_grid:
             self._decided_grid = current_grid
             self._recent_cells.append(current_grid)
-            self.next_direction = self.determine_direction(
+            self.next_direction = self._decide_direction_for_mode(
                 pacman, maze_data, ghosts
             )
         self.move_forward(maze_data)
+
+    def _decide_direction_for_mode(
+        self,
+        pacman: Pacman,
+        maze_data: list[list[int]],
+        ghosts: list["Ghost"]
+    ) -> Direction:
+        """現在のGhostModeに応じてターゲット/移動方針を切り替える"""
+        available_directions = self.get_available_directions(maze_data)
+
+        if self.mode == GhostMode.FRIGHTENED:
+            return self._decide_frightened_direction(available_directions)
+
+        if self.mode in (GhostMode.SCATTER, GhostMode.EATEN):
+            home_x, home_y = self.home_position
+            return self.decide_next_direction_bfs(
+                available_directions, maze_data, home_x, home_y
+            )
+
+        return self.determine_direction(pacman, maze_data, ghosts)
+
+    def _decide_frightened_direction(
+        self, available_directions: list[Direction]
+    ) -> Direction:
+        """イジケ中はパックマンから逃げる意味で、ランダムに方向を選ぶ"""
+        if not available_directions:
+            return self.direction
+        return random.choice(available_directions)
 
     def get_available_directions(
         self,
