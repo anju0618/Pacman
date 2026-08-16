@@ -9,6 +9,11 @@
 0810 amakino Clyde実装、display.pyにゴースト4体を統合（四隅出現・毎フレームupdate・描画）
 0810 takawaka WASD移動対応、Configでレベルごとの幅・高さを指定できるレベル進行の仕組みを追加（DEFAULT_LEVELSで最低10レベルに自動補完、Display.advance_to_next_levelでレベル遷移）
 0812 takawaka ghostの動きを改善し個性に合わせしっかりと追跡するようにした。pacmanの動きを改善
+0814 takawaka DisplayがConfigではなくPacmanGameContextを受け取るようにリファクタ
+0815 takawaka ハイスコアシステム（永続化・上位10件・名前入力）とメインメニュー/ハイスコア画面/操作説明画面を実装
+0816 amakino パグムの配置・回収・スコア加算を実装。ゴーストのGhostMode切替（Scatter/Chase/Frightened/Eaten）、Pacman-ゴースト接触判定（残機減少・リスポーン）、タイムリミット処理、ワープトンネル、チートモードの効果（無敵・レベルスキップ・ゴースト凍結・残機増加・速度上昇）、HUD、画像スプライト描画・パックマンのパクパクアニメーションを実装。README（英語+日本語）を執筆。
+0816 takawaka ウィンドウサイズ・キャラクター速度を調整
+0816 amakino 課題PDFを読み直して監査。バグ2件（レベル間でタイマーが引き継がれる、迷路生成失敗時にクラッシュする）とUI不足（Victory画面に祝福メッセージが無い）を修正。パグムの配置を「ほとんどの通路を埋める」仕様（VI.1/VI.4）に合わせて個数上限を撤廃。
 
 
 ```mermaid
@@ -17,28 +22,28 @@ gantt
     dateFormat  YYYY-MM-DD
 
     section Anjou Makino (amakino)
-    Project Setup (uv, toml, Makefile) :done, a1, 2026-08-06, 2026-08-06
-    Specification & Research           :done, a2, 2026-08-06, 2026-08-06
-    Enums & Game State Implementation  :done, a3, 2026-08-06, 2026-08-06
-    Maze Loader & Test Suite           :done, a4, 2026-08-06, 2026-08-06
-    Player Movement & Collision        :done, a5, 2026-08-07, 2026-08-10
-    Ghost Integration (4体・四隅出現)   :done, a5b, 2026-08-10, 2026-08-10
-    Warp Tunnel                        :        a5c, 2026-08-11, 2026-08-12
-    Ghost AI Bugfix (振動・Inky)        :done, a6a, 2026-08-10, 2026-08-10
-    Ghost AI & Behavior Logic (Mode切替) :active, a6, 2026-08-10, 2026-08-14
-    Level Progression & Rules          :active, a7, 2026-08-10, 2026-08-16
+    Project setup (uv, Makefile, .gitignore)          :done, a1, 2026-08-06, 1d
+    Enums, GameState & maze loader                     :done, a2, 2026-08-06, 1d
+    Character base classes & first AI draft            :done, a3, 2026-08-07, 2d
+    Bugfix pass w/ Claude Code review                  :done, a4, 2026-08-08, 1d
+    Ghost integration into the game loop               :done, a5, 2026-08-10, 1d
+    Ghost AI bugfix (infinite loop, Inky targeting)    :done, a6, 2026-08-10, 1d
+    Pacgum placement & collection                       :done, a7, 2026-08-16, 1d
+    Ghost modes (Scatter/Chase/Frightened/Eaten)        :done, a8, 2026-08-16, 1d
+    Collisions, lives, timers, warp tunnel, cheat mode  :done, a9, 2026-08-16, 1d
+    Sprite rendering & chomp animation                    :done, a10, 2026-08-16, 1d
+    Bugfix pass #2 & pacgum density fix (VI.1/VI.4)        :done, a11, 2026-08-16, 1d
 
     section Taiyo Kawakami (takawaka)
-    Config Parser (JSON w/ comments)   :done, t1, 2026-08-06, 2026-08-07
-    Config Validation & Fallback       :done, t2, 2026-08-06, 2026-08-07
-    WASD Input                         :done, t2b, 2026-08-10, 2026-08-10
-    Config-driven Level Progression    :done, t2c, 2026-08-10, 2026-08-10
-    Highscore System (Persistence)     :crit, t3, 2026-08-08, 2026-08-12
-    Cheat Mode Implementation          :        t4, 2026-08-12, 2026-08-14
+    Config parser (JSON w/ comments)                   :done, t1, 2026-08-06, 2d
+    Pydantic config & --cheat flag                       :done, t2, 2026-08-07, 1d
+    WASD input & config-driven level progression         :done, t3, 2026-08-10, 1d
+    Character movement tuning                             :done, t4, 2026-08-12, 1d
+    Display / GameContext refactor                          :done, t5, 2026-08-14, 1d
+    Highscore system & main menu                             :done, t6, 2026-08-15, 1d
+    Window size & speed tuning                                :done, t7, 2026-08-16, 1d
 
-    section Collaborative / Both
-    Graphic Library & Window Setup     :done, j1, 2026-08-08, 2026-08-10
-    Dots, Pellets & Scoring            :        j1b, 2026-08-10, 2026-08-12
-    Game Loop & UI/HUD Integration     :        j2, 2026-08-12, 2026-08-16
-    Testing, README & Packaging        :        j3, 2026-08-15, 2026-08-19
+    section Remaining
+    Docstring pass (PEP257, ~56 functions)                     :active, r1, 2026-08-17, 2d
+    Steam / Itch.io packaging                                    :r2, after r1, 3d
 ```

@@ -82,7 +82,6 @@ the console — a malformed config file never crashes the game.
 | `seed` | int | `42` | Fixed seed for level 1's maze. |
 | `lives` | int (≥1) | `3` | Starting lives. |
 | `level_max_time` | int (≥1) | `90` | Seconds allowed per level before it counts as a life lost. |
-| `pacgum` | int (≥1) | `42` | Target number of normal pacgums per level (clamped to the corridors actually available). |
 | `points_per_pacgum` | int (≥0) | `10` | Score for eating a normal pacgum. |
 | `points_per_super_pacgum` | int (≥0) | `50` | Score for eating a super pacgum. |
 | `points_per_ghost` | int (≥0) | `200` | Score for eating a frightened ghost. |
@@ -92,6 +91,12 @@ The `level` array only needs as many entries as you want to customize; it is
 automatically padded with built-in defaults up to a minimum of 10 levels
 (`DEFAULT_LEVELS` in `src/parse.py`). Level 1 always uses the fixed `seed`; every
 later level is generated with a random seed.
+
+There is no config key for the pacgum count: per VI.1/VI.4 of the subject
+("pacgums in most corridors"), `src/pacgum.py` places a normal pacgum on every
+open corridor cell that isn't the spawn point or a corner (reserved for a super
+pacgum), so the count always scales with the maze instead of being capped at a
+fixed number.
 
 ### High Score
 
@@ -199,6 +204,38 @@ Project management artifacts live in `management/`:
 - The git history itself documents iterative progress, including several
   AI-assisted review/bugfix passes (see Resources below).
 
+```mermaid
+gantt
+    title Packman Project Timeline - Member Work Division & Tasks
+    dateFormat  YYYY-MM-DD
+
+    section Anjou Makino (amakino)
+    Project setup (uv, Makefile, .gitignore)          :done, a1, 2026-08-06, 1d
+    Enums, GameState & maze loader                     :done, a2, 2026-08-06, 1d
+    Character base classes & first AI draft            :done, a3, 2026-08-07, 2d
+    Bugfix pass w/ Claude Code review                  :done, a4, 2026-08-08, 1d
+    Ghost integration into the game loop               :done, a5, 2026-08-10, 1d
+    Ghost AI bugfix (infinite loop, Inky targeting)    :done, a6, 2026-08-10, 1d
+    Pacgum placement & collection                       :done, a7, 2026-08-16, 1d
+    Ghost modes (Scatter/Chase/Frightened/Eaten)        :done, a8, 2026-08-16, 1d
+    Collisions, lives, timers, warp tunnel, cheat mode  :done, a9, 2026-08-16, 1d
+    Sprite rendering & chomp animation                    :done, a10, 2026-08-16, 1d
+    Bugfix pass #2 & pacgum density fix (VI.1/VI.4)        :done, a11, 2026-08-16, 1d
+
+    section Taiyo Kawakami (takawaka)
+    Config parser (JSON w/ comments)                   :done, t1, 2026-08-06, 2d
+    Pydantic config & --cheat flag                       :done, t2, 2026-08-07, 1d
+    WASD input & config-driven level progression         :done, t3, 2026-08-10, 1d
+    Character movement tuning                             :done, t4, 2026-08-12, 1d
+    Display / GameContext refactor                          :done, t5, 2026-08-14, 1d
+    Highscore system & main menu                             :done, t6, 2026-08-15, 1d
+    Window size & speed tuning                                :done, t7, 2026-08-16, 1d
+
+    section Remaining
+    Docstring pass (PEP257, ~56 functions)                     :active, r1, 2026-08-17, 2d
+    Steam / Itch.io packaging                                    :r2, after r1, 3d
+```
+
 ### Resources
 
 **AI usage**
@@ -300,7 +337,6 @@ python3 pac-man.py <config.json> [--cheat]
 | `seed` | int | `42` | レベル1の迷路を生成する固定シード。 |
 | `lives` | int(≥1) | `3` | 初期残機。 |
 | `level_max_time` | int(≥1) | `90` | 1レベルの制限時間(秒)。超えると残機が1減る。 |
-| `pacgum` | int(≥1) | `42` | 1レベルあたりの通常パグムの目標個数(実際に配置できる通路数でクランプされる)。 |
 | `points_per_pacgum` | int(≥0) | `10` | 通常パグムを食べた時の得点。 |
 | `points_per_super_pacgum` | int(≥0) | `50` | スーパーパグムを食べた時の得点。 |
 | `points_per_ghost` | int(≥0) | `200` | イジケ状態のゴーストを食べた時の得点。 |
@@ -309,6 +345,11 @@ python3 pac-man.py <config.json> [--cheat]
 `level`配列は変更したい分だけ書けばよく、`src/parse.py`の`DEFAULT_LEVELS`により
 自動的に最低10レベルまで補完される。レベル1は常に固定`seed`で生成され、以降の
 レベルはランダムシードで生成される。
+
+パグムの個数を指定するconfigキーは無い。課題仕様VI.1/VI.4の「ほとんどの通路に
+パグムを置く」という要件に合わせて、`src/pacgum.py`が出現地点と四隅(スーパー
+パグム用)を除いた全ての通路セルに通常パグムを配置するため、個数は固定値では
+なく迷路のサイズに応じて自動的にスケールする。
 
 ### ハイスコア
 
@@ -407,6 +448,38 @@ python3 pac-man.py <config.json> [--cheat]
   タイミングを示すMermaid製ガントチャート。
 - Git履歴そのものが反復的な開発の証跡になっており、AIを活用したレビュー・
   バグ修正の記録も含まれている(詳細は下の「参考資料」)。
+
+```mermaid
+gantt
+    title Packman Project Timeline - Member Work Division & Tasks
+    dateFormat  YYYY-MM-DD
+
+    section Anjou Makino (amakino)
+    Project setup (uv, Makefile, .gitignore)          :done, a1, 2026-08-06, 1d
+    Enums, GameState & maze loader                     :done, a2, 2026-08-06, 1d
+    Character base classes & first AI draft            :done, a3, 2026-08-07, 2d
+    Bugfix pass w/ Claude Code review                  :done, a4, 2026-08-08, 1d
+    Ghost integration into the game loop               :done, a5, 2026-08-10, 1d
+    Ghost AI bugfix (infinite loop, Inky targeting)    :done, a6, 2026-08-10, 1d
+    Pacgum placement & collection                       :done, a7, 2026-08-16, 1d
+    Ghost modes (Scatter/Chase/Frightened/Eaten)        :done, a8, 2026-08-16, 1d
+    Collisions, lives, timers, warp tunnel, cheat mode  :done, a9, 2026-08-16, 1d
+    Sprite rendering & chomp animation                    :done, a10, 2026-08-16, 1d
+    Bugfix pass #2 & pacgum density fix (VI.1/VI.4)        :done, a11, 2026-08-16, 1d
+
+    section Taiyo Kawakami (takawaka)
+    Config parser (JSON w/ comments)                   :done, t1, 2026-08-06, 2d
+    Pydantic config & --cheat flag                       :done, t2, 2026-08-07, 1d
+    WASD input & config-driven level progression         :done, t3, 2026-08-10, 1d
+    Character movement tuning                             :done, t4, 2026-08-12, 1d
+    Display / GameContext refactor                          :done, t5, 2026-08-14, 1d
+    Highscore system & main menu                             :done, t6, 2026-08-15, 1d
+    Window size & speed tuning                                :done, t7, 2026-08-16, 1d
+
+    section Remaining
+    Docstring pass (PEP257, ~56 functions)                     :active, r1, 2026-08-17, 2d
+    Steam / Itch.io packaging                                    :r2, after r1, 3d
+```
 
 ### 参考資料
 

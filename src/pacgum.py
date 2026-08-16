@@ -1,7 +1,6 @@
 """
 パグムの配置とか接触アルゴリズムを定義
 """
-import random
 from collections.abc import Iterable
 from enum import Enum, auto
 
@@ -13,22 +12,24 @@ class PacgumKind(Enum):
 
 
 class Pacgum:
-    """迷路上のパグム(小ドット)とスーパーパグム(パワーペレット)の配置・回収を管理する"""
+    """迷路上のパグム(小ドット)とスーパーパグム(パワーペレット)の配置・回収を管理する
+
+    課題仕様(VI.1/VI.4)の「ほとんどの通路に小ドットを置く」という要件を
+    満たすため、Pacman初期位置と四隅(スーパーパグム)を除いた通路セルの
+    全てに通常パグムを配置する(個数の上限は設けない)。
+    """
 
     def __init__(
             self,
             maze_data: list[list[int]],
             super_positions: list[tuple[int, int]],
             excluded_positions: Iterable[tuple[int, int]],
-            count: int
             ) -> None:
         self.super_positions: set[tuple[int, int]] = set(super_positions)
 
         excluded = set(excluded_positions) | self.super_positions
-        available = self._open_cells(maze_data, excluded)
-        placed_count = min(count, len(available))
         self.normal_positions: set[tuple[int, int]] = set(
-            random.sample(available, placed_count)
+            self._open_cells(maze_data, excluded)
         )
 
     @staticmethod
