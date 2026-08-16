@@ -27,9 +27,9 @@ EATEN_COLOR = (200, 200, 200)
 
 MENU_OPTIONS = ("Start Game", "View Highscores", "Instructions", "Exit")
 END_STATES = (GameState.GAME_OVER, GameState.VICTORY)
-MAX_WINDOW_SIZE = 800
-MAX_CELL_SIZE = 30
-MIN_CELL_SIZE = 8
+MAX_WINDOW_SIZE = 2000
+MAX_CELL_SIZE = 45
+MIN_CELL_SIZE = 10
 
 # Scatter/Chaseを交互に切り替えるスケジュール（本家ライクな簡略版）。
 # FRIGHTENED中は一時停止し、終了後はこのスケジュールへ復帰する。
@@ -71,9 +71,9 @@ class Display:
 
         self._load_level()
         self.clock = pygame.time.Clock()
-        self.title_font = pygame.font.Font(None, 48)
-        self.text_font = pygame.font.Font(None, 32)
-        self.small_font = pygame.font.Font(None, 24)
+        self.title_font = pygame.font.Font(None, 80)
+        self.text_font = pygame.font.Font(None, 50)
+        self.small_font = pygame.font.Font(None, 35)
 
     def _load_level(self) -> None:
         level = self.levels[self.current_level_index]
@@ -388,6 +388,36 @@ class Display:
         x = (self.screen.get_width() - rendered.get_width()) // 2
         self.screen.blit(rendered, (x, y))
 
+    def _highscore_entry_layout(
+        self, start_y: int, end_y: int
+    ) -> tuple[pygame.font.Font, int]:
+        """Return a non-overlapping font and row spacing for high scores."""
+        entry_count = len(self.highscores.entries)
+        if entry_count == 0:
+            return self.small_font, self.small_font.get_linesize()
+
+        available_height = max(1, end_y - start_y)
+        if entry_count == 1:
+            max_row_spacing = available_height
+        else:
+            max_row_spacing = max(
+                1,
+                (available_height - self.small_font.get_height())
+                // (entry_count - 1),
+            )
+
+        font = self.small_font
+        font_size = max(12, max_row_spacing)
+        if font.get_linesize() > max_row_spacing:
+            font = pygame.font.Font(None, font_size)
+            while font.get_linesize() > max_row_spacing and font_size > 12:
+                font_size -= 1
+                font = pygame.font.Font(None, font_size)
+
+        row_spacing = min(font.get_linesize() + 4, max_row_spacing)
+        row_spacing = max(font.get_linesize(), row_spacing)
+        return font, row_spacing
+
     def _render_main_menu(self) -> None:
         self.screen.fill((0, 0, 0))
         self._draw_centered("Pac-Man", 45, (255, 255, 0), self.title_font)
@@ -399,25 +429,72 @@ class Display:
 
     def _render_highscores(self) -> None:
         self.screen.fill((0, 0, 0))
-        self._draw_centered("High Scores", 35, (255, 255, 0), self.title_font)
-        row_spacing = min(
-            28, max(18, (self.screen.get_height() - 130) // 10)
+        title_y = 20
+        footer_y = (
+            self.screen.get_height() - self.small_font.get_height() - 10
         )
-        self._draw_highscore_entries(70, row_spacing)
+        entries_start_y = title_y + self.small_font.get_height() + 15
+        entries_end_y = footer_y - 10
+        entry_font, row_spacing = self._highscore_entry_layout(
+            entries_start_y, entries_end_y
+        )
         self._draw_centered(
-            "Enter or Esc: back", self.screen.get_height() - 35,
-            font=self.small_font
+            "High Scores", title_y, (255, 255, 0), entry_font
+        )
+        self._draw_highscore_entries(
+            entries_start_y, row_spacing, font=entry_font
+        )
+        self._draw_centered(
+            "Enter or Esc: back", footer_y,
+            font=entry_font
         )
 
-    def _draw_highscore_entries(self, start_y: int, row_spacing: int) -> None:
+    def _draw_highscore_entries(
+        self,
+        start_y: int,
+        row_spacing: int,
+        font: pygame.font.Font | None = None,
+    ) -> None:
+        entry_font = font or self.small_font
         if not self.highscores.entries:
-            self._draw_centered("No scores yet", start_y)
+            self._draw_centered("No scores yet", start_y, font=entry_font)
             return
 
-        for index, entry in enumerate(self.highscores.entries, start=1):
-            line = f"{index:2}. {entry.name:<10} {entry.score:>8}"
-            self._draw_centered(
-                line, start_y + index * row_spacing, font=self.small_font
+        rank_width = entry_font.size(f"{len(self.highscores.entries):>2}.")[0]
+        name_width = max(
+            entry_font.size(entry.name)[0]
+            for entry in self.highscores.entries
+        )
+        score_width = max(
+            entry_font.size(str(entry.score))[0]
+            for entry in self.highscores.entries
+        )
+        column_gap = entry_font.size("  ")[0]
+        table_width = rank_width + column_gap + name_width
+        table_width += column_gap + score_width
+        table_left = (self.screen.get_width() - table_width) // 2
+        name_x = table_left + rank_width + column_gap
+        score_right = table_width + table_left
+
+        for index, entry in enumerate(self.highscores.entries):
+            y = start_y + index * row_spacing
+            rank_surface = entry_font.render(
+                f"{index + 1:>2}.", True, (255, 255, 255)
+            )
+            name_surface = entry_font.render(
+                entry.name, True, (255, 255, 255)
+            )
+            score_surface = entry_font.render(
+                str(entry.score), True, (255, 255, 255)
+            )
+            self.screen.blit(
+                rank_surface,
+                (table_left + rank_width - rank_surface.get_width(), y),
+            )
+            self.screen.blit(name_surface, (name_x, y))
+            self.screen.blit(
+                score_surface,
+                (score_right - score_surface.get_width(), y),
             )
 
     def _render_instructions(self) -> None:
@@ -453,18 +530,40 @@ class Display:
             if self.game_context.state == GameState.VICTORY
             else "Game Over"
         )
-        self._draw_centered(heading, 55, (255, 255, 0), self.title_font)
+        heading_y = 20
+        self._draw_centered(heading, heading_y, (255, 255, 0), self.title_font)
         if self.score_submitted:
-            self._draw_centered(f"Final score: {self.game_context.score}", 80)
-            self._draw_centered(self.score_message, 105, font=self.small_font)
-            self._draw_centered("High Scores", 135, font=self.small_font)
-            row_spacing = min(
-                18, max(12, (self.screen.get_height() - 190) // 10)
+            score_y = heading_y + self.title_font.get_height() + 8
+            message_y = score_y + self.text_font.get_height() + 6
+            highscore_title_y = (
+                message_y + self.small_font.get_height() + 8
             )
-            self._draw_highscore_entries(145, row_spacing)
+            entries_start_y = (
+                highscore_title_y + self.small_font.get_height() + 8
+            )
+            footer_y = (
+                self.screen.get_height() - self.small_font.get_height() - 10
+            )
+            entries_end_y = footer_y - 8
+            entry_font, row_spacing = self._highscore_entry_layout(
+                entries_start_y, entries_end_y
+            )
+
             self._draw_centered(
-                "Enter: main menu", self.screen.get_height() - 25,
-                font=self.small_font
+                f"Final score: {self.game_context.score}", score_y
+            )
+            self._draw_centered(
+                self.score_message, message_y, font=self.small_font
+            )
+            self._draw_centered(
+                "High Scores", highscore_title_y, font=entry_font
+            )
+            self._draw_highscore_entries(
+                entries_start_y, row_spacing, font=entry_font
+            )
+            self._draw_centered(
+                "Enter: main menu", footer_y,
+                font=entry_font
             )
         else:
             self._draw_centered(f"Final score: {self.game_context.score}", 130)
@@ -476,7 +575,7 @@ class Display:
                 )
 
     def _draw_pacgums(self) -> None:
-        normal_radius = max(1, int(self.cell_size * 0.08))
+        normal_radius = max(1, int(self.cell_size * 0.16))
         for x, y in self.pacgum.normal_positions:
             px = x * self.cell_size + self.cell_size // 2
             py = y * self.cell_size + self.cell_size // 2
@@ -484,7 +583,7 @@ class Display:
                 self.screen, (255, 220, 170), (px, py), normal_radius
             )
 
-        super_radius = max(1, int(self.cell_size * 0.22))
+        super_radius = max(1, int(self.cell_size * 0.32))
         for x, y in self.pacgum.super_positions:
             px = x * self.cell_size + self.cell_size // 2
             py = y * self.cell_size + self.cell_size // 2

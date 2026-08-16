@@ -18,7 +18,7 @@ class Character:
         self.y: float = start_y
         self.direction: Direction = Direction.RIGHT
         self.next_direction: Direction | None = None
-        self.speed: float = 0.12
+        self.speed: float = 0.095
         # 当たり判定と描画の両方で共有する半径（食い違うと壁にめり込んで見える）
         self.radius: float = 0.45  # 0.45にすると食い込まない
 
