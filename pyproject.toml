@@ -1,7 +1,7 @@
 [project]
 name = "packman"
 version = "0.1.0"
-description = "Add your description here"
+description = "A Pac-Man clone built for the 42 curriculum."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -27,3 +27,6 @@ warn_unused_ignores = true
 ignore_missing_imports = true
 disallow_untyped_defs = true
 check_untyped_defs = true
+# 課題要件どおり `mypy .` でプロジェクト全体を検査できるようにするため、
+# 自分たちが書いていないコード(仮想環境・外部パッケージ)は除外する。
+exclude = '^(\.venv|package|build|dist)/'

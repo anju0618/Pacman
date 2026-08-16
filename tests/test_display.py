@@ -7,6 +7,7 @@ from src.enums import Direction, GameState, GhostMode
 from src.game_state import PacmanGameContext
 from src.graphic.display import Display
 from src.highscore import HighScoreEntry, HighScoreSystem
+from src.maze_loader import MazeLoader
 from src.parse import Config
 
 
@@ -111,16 +112,15 @@ def test_maze_generation_failure_falls_back_to_default_size(
     monkeypatch.setenv("SDL_VIDEODRIVER", "dummy")
     import src.graphic.display as display_module
 
-    real_maze_loader = display_module.MazeLoader
     call_count = {"count": 0}
 
     def flaky_maze_loader(
         width: int, height: int, seed: int
-    ) -> display_module.MazeLoader:
+    ) -> MazeLoader:
         call_count["count"] += 1
         if call_count["count"] == 1:
             raise RuntimeError("boom")
-        return real_maze_loader(width=width, height=height, seed=seed)
+        return MazeLoader(width=width, height=height, seed=seed)
 
     monkeypatch.setattr(display_module, "MazeLoader", flaky_maze_loader)
 

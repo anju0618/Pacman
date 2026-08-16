@@ -35,12 +35,12 @@ fclean: clean
 	fi
 
 lint:
-	uv run flake8 $(SRC_DIR) $(TEST_DIR)
-	uv run mypy --explicit-package-bases --warn-return-any --warn-unused-ignores --ignore-missing-imports --disallow-untyped-defs --check-untyped-defs $(SRC_DIR) $(TEST_DIR)
+	uv run flake8 .
+	uv run mypy --explicit-package-bases --warn-return-any --warn-unused-ignores --ignore-missing-imports --disallow-untyped-defs --check-untyped-defs .
 
 lint-strict:
-	uv run flake8 $(SRC_DIR) $(TEST_DIR)
-	uv run mypy --strict $(SRC_DIR) $(TEST_DIR)
+	uv run flake8 .
+	uv run mypy --strict .
 
 test:
 	@echo "Running test suite with pytest..."
