@@ -1,5 +1,6 @@
 # pac-man.py
 import argparse
+import sys
 from src.parse import Parsing
 from src.game_state import PacmanGameContext
 from src.graphic.display import Display
@@ -35,4 +36,17 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    # 課題要件(III.1)「未処理の例外でクラッシュしないこと」の最終防壁。
+    # display.run()内のループ本体はDisplay.run()自身が保護しているが、
+    # 設定ファイルの読み込みやDisplay構築（スプライト読み込みなど）は
+    # ループの外で行われるため、ここでも念のため覆っておく。
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\nInterrupted.")
+        sys.exit(0)
+    except SystemExit:
+        raise
+    except Exception as error:
+        print(f"Fatal error: {error}")
+        sys.exit(1)

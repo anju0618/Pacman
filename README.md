@@ -229,7 +229,7 @@ gantt
 
     section Collaborative / Both
     Test suite growth alongside every feature            :done, c1, 2026-08-06, 2026-08-16
-    Docs: README, TASK.md, gant.md                          :done, c2, 2026-08-16, 1d
+    Docs (README, TASK.md, gant.md)                          :done, c2, 2026-08-16, 1d
 
     section Remaining
     Docstring pass (PEP257, ~56 functions)                     :active, r1, 2026-08-17, 2d
@@ -474,7 +474,7 @@ gantt
 
     section Collaborative / Both
     Test suite growth alongside every feature            :done, c1, 2026-08-06, 2026-08-16
-    Docs: README, TASK.md, gant.md                          :done, c2, 2026-08-16, 1d
+    Docs (README, TASK.md, gant.md)                          :done, c2, 2026-08-16, 1d
 
     section Remaining
     Docstring pass (PEP257, ~56 functions)                     :active, r1, 2026-08-17, 2d

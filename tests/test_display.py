@@ -88,6 +88,23 @@ def test_advance_to_next_level_resets_the_timer(
         pygame.quit()
 
 
+def test_run_never_lets_an_unexpected_exception_escape(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """III.1: an unhandled exception must never crash the game."""
+    monkeypatch.setenv("SDL_VIDEODRIVER", "dummy")
+    config = Config(level=[{"id": 1, "width": 5, "height": 5}])
+    game_context = PacmanGameContext(config=config, state=GameState.IN_GAME)
+    display = Display(game_context)
+
+    def explode() -> None:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(display, "_render_game", explode)
+
+    display.run()  # must return normally, not raise
+
+
 def test_maze_generation_failure_falls_back_to_default_size(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

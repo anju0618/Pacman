@@ -94,10 +94,9 @@ class Display:
         # 最初のレベルは設定されたシード、それ以降はランダムに生成する。
         # （MazeGenerator は seed<=0 のとき random.seed() で真の乱数を使う）
         seed = self.config.seed if self.current_level_index == 0 else 0
-        self.maze_loader = self._build_maze_loader(
+        self.maze_loader, self.maze_data = self._build_maze(
             level["width"], level["height"], seed
         )
-        self.maze_data = self.maze_loader.get_binary_grid()
         self.current_level = level["id"]
         self.game_context.current_level = self.current_level
         self.game_context.time_remaining = self.config.level_max_time
@@ -142,17 +141,22 @@ class Display:
         pygame.display.set_caption(f"Pac-Man - Level {self.current_level}")
 
     @staticmethod
-    def _build_maze_loader(width: int, height: int, seed: int) -> MazeLoader:
+    def _build_maze(
+        width: int, height: int, seed: int
+    ) -> tuple[MazeLoader, list[list[int]]]:
         """外部の迷路生成パッケージを呼び出し、失敗時は安全に処理する
 
         課題要件(V.4)により、割り当てられたA-Maze-ingパッケージが失敗
         した場合はトレースバックでクラッシュせずクリーンに処理しなければ
-        ならない。まず指定サイズで生成を試み、失敗したらデフォルトの
-        レベル1サイズで再試行し、それも失敗したら分かりやすいメッセージ
-        を出して終了する（起動を継続できないため）。
+        ならない。生成(MazeLoaderの構築)だけでなく、そこから通路データ
+        を取り出すget_binary_grid()の失敗も同じ経路でカバーする。
+        まず指定サイズで生成を試み、失敗したらデフォルトのレベル1サイズ
+        で再試行し、それも失敗したら分かりやすいメッセージを出して終了
+        する（迷路が無いと起動を継続できないため）。
         """
         try:
-            return MazeLoader(width=width, height=height, seed=seed)
+            loader = MazeLoader(width=width, height=height, seed=seed)
+            return loader, loader.get_binary_grid()
         except Exception as error:
             print(
                 f"Maze generation failed for size {width}x{height}: "
@@ -166,9 +170,10 @@ class Display:
                 "Retrying with the default maze size "
                 f"{fallback_width}x{fallback_height}."
             )
-            return MazeLoader(
+            loader = MazeLoader(
                 width=fallback_width, height=fallback_height, seed=seed
             )
+            return loader, loader.get_binary_grid()
         except Exception as fallback_error:
             print(f"Fallback maze generation also failed: {fallback_error}")
             pygame.quit()
@@ -768,34 +773,42 @@ class Display:
     def run(self) -> None:
         """
         main loop
+
+        課題要件(III.1)により、未処理の例外によるクラッシュは許されない。
+        1フレームの描画・更新処理のどこかで想定外の例外が起きても、
+        トレースバックを出さずにメッセージを出して安全に終了する。
+        pygame.quit()は正常終了・異常終了のどちらでも必ず呼ぶ。
         """
         running = True
 
-        while running:
-            for event in pygame.event.get():
-                if not self._handle_event(event):
-                    running = False
-            if not running:
-                break
+        try:
+            while running:
+                for event in pygame.event.get():
+                    if not self._handle_event(event):
+                        running = False
+                if not running:
+                    break
 
-            state = self.game_context.state
-            if state == GameState.MAIN_MENU:
-                self._render_main_menu()
-            elif state == GameState.HIGHSCORES:
-                self._render_highscores()
-            elif state == GameState.INSTRUCTIONS:
-                self._render_instructions()
-            elif state == GameState.IN_GAME:
-                self._render_game()
-            elif state == GameState.PAUSED:
-                self._render_pause()
-            elif state in END_STATES:
-                self._render_end_screen()
+                state = self.game_context.state
+                if state == GameState.MAIN_MENU:
+                    self._render_main_menu()
+                elif state == GameState.HIGHSCORES:
+                    self._render_highscores()
+                elif state == GameState.INSTRUCTIONS:
+                    self._render_instructions()
+                elif state == GameState.IN_GAME:
+                    self._render_game()
+                elif state == GameState.PAUSED:
+                    self._render_pause()
+                elif state in END_STATES:
+                    self._render_end_screen()
 
-            self.clock.tick(60)
-            pygame.display.flip()
-
-        pygame.quit()
+                self.clock.tick(60)
+                pygame.display.flip()
+        except Exception as error:
+            print(f"Unexpected error, shutting down cleanly: {error}")
+        finally:
+            pygame.quit()
 
 
 if __name__ == "__main__":
