@@ -1,5 +1,10 @@
 """
-display config mod
+pygameウィンドウの生成・メインループ・全画面の描画を担当するモジュール。
+
+Displayクラスが、状態遷移(GameStateに基づく画面切り替え)・入力処理
+・毎フレームの更新と描画・ゴーストのモード管理(Scatter/Chase/
+Frightened/Eaten)・当たり判定・HUD表示・チートモードの効果など、
+ゲーム全体を統括する「司令塔」の役割を持つ。
 """
 import pygame
 from src.maze_loader import MazeLoader
@@ -17,12 +22,16 @@ from src.pacgum import Pacgum, PacgumKind
 from src.parse import Config, DEFAULT_LEVELS
 from src.graphic.sprites import SpriteSet
 
+# ゴーストのクラス(型)から、対応するスプライトキー(src/graphic/sprites.py
+# のSPRITE_FILENAMES)への対応表。
 GHOST_SPRITE_KEYS: dict[type, str] = {
     Blinky: "blinky",
     Pinky: "pinky",
     Inky: "inky",
     Clyde: "clyde",
 }
+# Pacmanのスプライトは右向きで描かれているため、実際の進行方向に
+# あわせて回転させる角度(度・反時計回り)。
 PACMAN_ROTATION_DEGREES: dict[Direction, int] = {
     Direction.RIGHT: 0,
     Direction.UP: 90,
@@ -30,8 +39,14 @@ PACMAN_ROTATION_DEGREES: dict[Direction, int] = {
     Direction.DOWN: 270,
 }
 
+# メインメニューの選択肢(課題要件VI.8: Start Game/View Highscores/
+# Instructions/Exitの4つ)。
 MENU_OPTIONS = ("Start Game", "View Highscores", "Instructions", "Exit")
+# ゲーム終了(勝敗確定)を表す状態の集合。ハイスコア入力画面の表示や
+# 入力イベントの振り分けで、この2状態をまとめて扱う箇所が多いため。
 END_STATES = (GameState.GAME_OVER, GameState.VICTORY)
+# ウィンドウ・セルサイズの上限/下限(迷路が大きくても小さくても
+# 見やすいウィンドウサイズに収まるよう調整するための定数)。
 MAX_WINDOW_SIZE = 2000
 MAX_CELL_SIZE = 45
 MIN_CELL_SIZE = 10
@@ -53,12 +68,29 @@ PACMAN_CHOMP_FRAMES = (
 
 
 class Display:
+    """pygameウィンドウ・メインループ・全画面描画を統括するクラス。
+
+    PacmanGameContext(スコア・残機・現在の画面など、レベルをまたいで
+    保持したい状態)を受け取り、それに基づいてメニュー・インゲーム・
+    ポーズ・ハイスコア・ゲームオーバー/勝利画面の描画と入力処理を
+    行う。レベルが変わるたびに迷路・Pacman・ゴースト・パグムは
+    _load_level()で作り直されるが、game_context自体は使い回される。
+    """
 
     def __init__(
         self,
         game_context: PacmanGameContext,
         highscore_system: HighScoreSystem | None = None,
     ) -> None:
+        """pygameを初期化し、フォント・ハイスコア・最初のレベルを準備する。
+
+        Args:
+            game_context: スコア・残機・現在の画面などを保持する
+                ゲーム全体の状態オブジェクト。
+            highscore_system: 使用するハイスコアシステム。省略時は
+                config.highscore_filenameを使って新規作成する
+                (テストで差し替えられるように引数化してある)。
+        """
         pygame.init()
 
         self.game_context = game_context
@@ -89,6 +121,16 @@ class Display:
         self.small_font = pygame.font.Font(None, 35)
 
     def _load_level(self) -> None:
+        """現在のレベル番号に対応する迷路・キャラクター一式を作り直す。
+
+        新規ゲーム開始時(__init__/_start_game)だけでなく、レベル
+        クリア時(advance_to_next_level)にも呼ばれる「レベルの
+        初期状態を作る」共通処理。迷路生成・ワープトンネルの穴あけ・
+        Pacman/ゴースト/パグムの再配置・ゴーストモードのリセット・
+        ウィンドウサイズの再計算まで、1レベル分の初期化を全て行う。
+        game_context(スコア・残機など)には触れないため、レベルを
+        またいでもスコアや残機は保持される。
+        """
         level = self.levels[self.current_level_index]
 
         # 最初のレベルは設定されたシード、それ以降はランダムに生成する。
@@ -181,7 +223,12 @@ class Display:
 
     @staticmethod
     def _cell_size_for_maze(width: int, height: int) -> int:
-        """Choose a cell size within the window limit."""
+        """迷路の縦横マス数から、ウィンドウ上限に収まる1マスのピクセル数を決める。
+
+        大きい迷路ほどセルを小さくしてウィンドウがMAX_WINDOW_SIZEを
+        超えないようにしつつ、MIN_CELL_SIZEより小さくはしない
+        (小さすぎると壁や自機が視認できなくなるため)。
+        """
         largest_dimension = max(width, height)
         if largest_dimension <= 0:
             return MAX_CELL_SIZE
@@ -191,6 +238,12 @@ class Display:
         )
 
     def _start_game(self) -> None:
+        """メインメニューの「Start Game」を選んだ時の処理。
+
+        レベル1から新規ゲームを開始する。game_context.reset_for_new_game()
+        でスコア・残機・制限時間をリセットしてから、_load_level()で
+        レベル1の迷路を生成する。
+        """
         self.current_level_index = 0
         self.game_cleared = False
         self._score_entry_state = None
@@ -198,7 +251,7 @@ class Display:
         self._load_level()
 
     def is_cleared(self) -> bool:
-        """Return whether every pacgum on this level has been collected."""
+        """このレベルの全パグムを回収し終えたか(レベルクリア条件)を返す。"""
         return self.pacgum.is_empty()
 
     def advance_to_next_level(self) -> bool:
@@ -337,6 +390,13 @@ class Display:
             character.x = 0.0
 
     def _ensure_score_entry(self) -> None:
+        """GAME_OVER/VICTORY画面に初めて入った時だけ、名前入力欄をリセットする。
+
+        _render_end_screen()や_handle_event()の冒頭で毎フレーム呼ばれる
+        が、同じ終了状態(_score_entry_state)にいる間は何もしない。
+        こうすることで、名前を入力している途中で毎フレームリセット
+        されてしまう(入力できなくなる)のを防いでいる。
+        """
         state = self.game_context.state
         if state not in END_STATES or self._score_entry_state is state:
             return
@@ -347,6 +407,12 @@ class Display:
         self.score_submitted = False
 
     def _submit_highscore(self) -> None:
+        """入力された名前で現在のスコアをハイスコアに登録する。
+
+        名前が不正、またはHighScoreSystem.saveが失敗した場合は
+        (エラーメッセージ/元の状態への復元も含めて)ユーザーに
+        分かる形でフィードバックし、クラッシュしない。
+        """
         if not self.highscores.is_valid_name(self.name_input):
             self.input_error = "Use 1-10 letters, digits, or spaces."
             return
@@ -370,6 +436,14 @@ class Display:
         self.score_submitted = True
 
     def _handle_main_menu_event(self, event: pygame.event.Event) -> bool:
+        """メインメニュー表示中のキー入力を処理する。
+
+        上下キーで選択項目を移動し、Enterで決定する。「Exit」を
+        選ぶかEscを押すとFalseを返し、run()のメインループを終了させる。
+
+        Returns:
+            ゲームを続行するならTrue、終了するならFalse。
+        """
         if event.key == pygame.K_UP:
             self.menu_index = (self.menu_index - 1) % len(MENU_OPTIONS)
         elif event.key == pygame.K_DOWN:
@@ -388,6 +462,14 @@ class Display:
         return True
 
     def _handle_end_event(self, event: pygame.event.Event) -> None:
+        """ゲームオーバー/勝利画面での名前入力・確定操作を処理する。
+
+        スコア送信済みならEnterでメインメニューへ戻る。未送信なら
+        BackSpaceで1文字削除、Enterで送信、それ以外の半角英数字/
+        スペースの入力は名前欄(最大10文字)へ追加する
+        (課題要件のプレイヤー名バリデーションに合わせて、
+        ASCII英数字とスペース以外は最初から受け付けない)。
+        """
         if self.score_submitted:
             if event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
                 self.game_context.state = GameState.MAIN_MENU
@@ -407,6 +489,16 @@ class Display:
                 self.input_error = ""
 
     def _handle_event(self, event: pygame.event.Event) -> bool:
+        """1件のpygameイベントを、現在の画面(GameState)に応じて振り分ける。
+
+        ウィンドウを閉じるイベント(QUIT)を受けたらFalseを返して
+        メインループを終了させる。キー入力以外のイベントは無視する。
+        キー入力は現在のGameStateに応じてメニュー操作・移動入力・
+        ポーズ操作・名前入力などへ振り分ける。
+
+        Returns:
+            ゲームを続行するならTrue、終了するならFalse。
+        """
         if event.type == pygame.QUIT:
             return False
         if event.type != pygame.KEYDOWN:
@@ -460,6 +552,14 @@ class Display:
         color: tuple[int, int, int] = (255, 255, 255),
         font: pygame.font.Font | None = None,
     ) -> None:
+        """指定y座標に、テキストを画面の水平中央揃えで描画する。
+
+        Args:
+            text: 描画する文字列。
+            y: 描画するy座標(上端)。
+            color: 文字色(RGB)。省略時は白。
+            font: 使用するフォント。省略時はself.text_font。
+        """
         rendered = (font or self.text_font).render(text, True, color)
         x = (self.screen.get_width() - rendered.get_width()) // 2
         self.screen.blit(rendered, (x, y))
@@ -467,7 +567,20 @@ class Display:
     def _highscore_entry_layout(
         self, start_y: int, end_y: int
     ) -> tuple[pygame.font.Font, int]:
-        """Return a non-overlapping font and row spacing for high scores."""
+        """ハイスコア一覧を指定範囲に収めるためのフォント・行間を計算する。
+
+        表示件数(最大10件)や画面の高さは状況によって変わるため、
+        固定のフォントサイズだと項目数が多い時に画面からはみ出したり
+        重なったりする。ここでは、指定された縦幅(start_y〜end_y)に
+        全件がちょうど収まるよう、フォントサイズを動的に縮小する。
+
+        Args:
+            start_y: 一覧の描画開始y座標。
+            end_y: 一覧を収めたい終了y座標。
+
+        Returns:
+            (使用するフォント, 行間のピクセル数)のタプル。
+        """
         entry_count = len(self.highscores.entries)
         if entry_count == 0:
             return self.small_font, self.small_font.get_linesize()
@@ -495,6 +608,10 @@ class Display:
         return font, row_spacing
 
     def _render_main_menu(self) -> None:
+        """メインメニュー画面を描画する(課題要件VI.8)。
+
+        現在選択中の項目(self.menu_index)だけ黄色でハイライトする。
+        """
         self.screen.fill((0, 0, 0))
         self._draw_centered("Pac-Man", 45, (255, 255, 0), self.title_font)
         for index, option in enumerate(MENU_OPTIONS):
@@ -504,6 +621,7 @@ class Display:
             self._draw_centered(option, 120 + index * 45, color)
 
     def _render_highscores(self) -> None:
+        """ハイスコア一覧画面を描画する(課題要件VI.8: View Highscores)。"""
         self.screen.fill((0, 0, 0))
         title_y = 20
         footer_y = (
@@ -531,6 +649,19 @@ class Display:
         row_spacing: int,
         font: pygame.font.Font | None = None,
     ) -> None:
+        """順位・名前・スコアの3列を中央揃えの表として描画する。
+
+        ハイスコア画面(_render_highscores)とゲーム終了画面
+        (_render_end_screen)の両方から呼ばれる共通描画処理。
+        1件も無い場合は「No scores yet」とだけ表示する。各列の幅は
+        実際に表示する文字列から動的に計算し、表全体を画面中央に
+        配置する(順位は右詰め、名前は左詰め、スコアは右詰め)。
+
+        Args:
+            start_y: 1件目を描画するy座標。
+            row_spacing: 1件ごとの行間(ピクセル)。
+            font: 使用するフォント。省略時はself.small_font。
+        """
         entry_font = font or self.small_font
         if not self.highscores.entries:
             self._draw_centered("No scores yet", start_y, font=entry_font)
@@ -574,6 +705,10 @@ class Display:
             )
 
     def _render_instructions(self) -> None:
+        """操作説明画面を描画する(課題要件VI.8: Instructions)。
+
+        チートモード有効時は、専用のキー操作(F/N)の説明も追加表示する。
+        """
         self.screen.fill((0, 0, 0))
         self._draw_centered("Instructions", 50, (255, 255, 0), self.title_font)
         instructions = (
@@ -593,12 +728,19 @@ class Display:
             )
 
     def _render_pause(self) -> None:
+        """ポーズ画面を描画する(課題要件VI.8: Resume / Return to main menu)。"""
         self.screen.fill((0, 0, 0))
         self._draw_centered("Paused", 90, (255, 255, 0), self.title_font)
         self._draw_centered("Enter or Esc: Resume", 170)
         self._draw_centered("M: Return to main menu", 215)
 
     def _render_end_screen(self) -> None:
+        """ゲームオーバー/勝利画面を描画する(課題要件VI.8)。
+
+        スコア送信前は名前入力フォームを、送信後は結果メッセージと
+        更新後のハイスコア一覧を表示する。勝利時は見出しの下に
+        祝福メッセージを追加する。
+        """
         self._ensure_score_entry()
         self.screen.fill((0, 0, 0))
         is_victory = self.game_context.state == GameState.VICTORY
@@ -663,6 +805,7 @@ class Display:
                 )
 
     def _draw_pacgums(self) -> None:
+        """迷路上に残っている通常パグムとスーパーパグムを描画する。"""
         pacgum_sprite = self.sprites.get("pacgum", self.cell_size)
         for x, y in self.pacgum.normal_positions:
             self.screen.blit(
@@ -676,6 +819,10 @@ class Display:
             )
 
     def _draw_hud(self) -> None:
+        """スコア・残機・レベル・残り時間を画面左上に常時表示する。
+
+        課題要件VI.8のIn-Game HUD(常に表示すべき4項目)に対応する。
+        """
         status = (
             f"Score: {self.game_context.score}  "
             f"Lives: {self.game_context.lives}  "
@@ -686,6 +833,33 @@ class Display:
         self.screen.blit(rendered, (6, 4))
 
     def _render_game(self) -> None:
+        """インゲーム中の1フレーム分の更新と描画を全て行う。
+
+        毎フレーム、以下の順序で処理する。
+
+        1. 壁を描画する。
+        2. 経過時間(delta_time)を計算し、残り時間を減らす。
+           0以下になったらライフを失う処理(_handle_life_lost)を
+           呼び、ゲームオーバーになっていればここで打ち切る。
+        3. ゴーストのモード(Scatter/Chase/Frightened)のスケジュールを
+           進める(_advance_ghost_modes)。
+        4. Pacmanを移動させ、ワープトンネルの処理をし、実際に動いた
+           かどうかでパクパクアニメーションのタイマーを進める。
+        5. Pacmanの現在マスのパグムを回収し、加点する。スーパーパグム
+           ならゴーストをイジケさせる(_trigger_frightened)。
+        6. 全パグムを回収し終えていれば次のレベルへ進み、この
+           フレームの残りの処理は打ち切る。
+        7. (凍結されていなければ)ゴーストを移動させ、ワープトンネル
+           処理と、巣に帰り着いたEATENゴーストの復帰処理を行う。
+        8. Pacmanとゴーストの当たり判定を行う。ここでライフを失って
+           ゲームオーバーになっていれば打ち切る。
+        9. パグム・Pacman・ゴースト・HUDを描画する。
+
+        このように「更新」と「描画」を1つのメソッドにまとめている
+        のは、ライフロスやレベルクリアなど、フレームの途中で処理を
+        打ち切りたいケースが多く、更新と描画を分離すると打ち切り
+        タイミングの整合を取るのが逆に複雑になるため。
+        """
         self.screen.fill((0, 0, 0))
 
         wall_sprite = self.sprites.get("wall", self.cell_size)

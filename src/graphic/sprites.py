@@ -1,14 +1,16 @@
-"""Loads and scales the game's PNG sprites.
+"""ゲーム内の画像(PNGスプライト)を読み込み・拡縮するモジュール。
 
-Every visual element is drawn from a PNG file in ``assets/sprites/`` instead
-of a hardcoded shape. Replacing a file there (keeping the same name) swaps
-that element's look with no code changes.
+全ての見た目要素は`assets/sprites/`内のPNGファイルから描画される
+(円や矩形の直接描画ではない)。同じファイル名のまま画像を差し替える
+だけで、コードを一切変更せずに見た目を変更できる設計にしている。
 """
 from pathlib import Path
 import pygame
 
 ASSET_DIR = Path(__file__).resolve().parents[2] / "assets" / "sprites"
 
+# 「見た目の種類」と「対応するPNGファイル名」の対応表。
+# キーを変えずにファイルの中身だけ差し替えれば絵を変えられる。
 SPRITE_FILENAMES: dict[str, str] = {
     "wall": "wall.png",
     "pacman_open": "pacman_open.png",
@@ -26,9 +28,22 @@ SPRITE_FILENAMES: dict[str, str] = {
 
 
 class SpriteSet:
-    """Loads each sprite once and caches per-cell-size scaled copies."""
+    """各スプライトを1度だけ読み込み、セルサイズごとの拡縮結果をキャッシュするクラス。
+
+    迷路のセルサイズ(cell_size)はレベルによって変わる(_cell_size_for_maze
+    参照)ため、同じ元画像でも毎回違うサイズへスケーリングする必要が
+    ある。毎フレーム拡縮するのは無駄なので、(種類, セルサイズ)の
+    組み合わせごとに結果をキャッシュして再利用する。
+    """
 
     def __init__(self, asset_dir: Path = ASSET_DIR) -> None:
+        """全スプライトの元画像を読み込む。
+
+        Args:
+            asset_dir: PNGファイルが置かれているディレクトリ。
+                テストではダミー画像を置いた別ディレクトリを渡せる
+                ように、引数で差し替え可能にしてある。
+        """
         self._originals: dict[str, pygame.Surface] = {
             key: pygame.image.load(
                 str(asset_dir / filename)
@@ -38,7 +53,11 @@ class SpriteSet:
         self._scaled_cache: dict[tuple[str, int], pygame.Surface] = {}
 
     def get(self, key: str, cell_size: int) -> pygame.Surface:
-        """Return ``key``'s sprite scaled to ``cell_size`` x ``cell_size``."""
+        """keyに対応するスプライトを、cell_size x cell_sizeへ拡縮して返す。
+
+        同じ(key, cell_size)の組み合わせは2回目以降キャッシュから
+        即座に返す。
+        """
         cache_key = (key, cell_size)
         cached = self._scaled_cache.get(cache_key)
         if cached is not None:
