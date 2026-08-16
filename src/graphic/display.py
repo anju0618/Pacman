@@ -433,13 +433,13 @@ class Display:
         footer_y = (
             self.screen.get_height() - self.small_font.get_height() - 10
         )
-        entries_start_y = title_y + self.small_font.get_height() + 15
+        entries_start_y = title_y + self.title_font.get_height() + 15
         entries_end_y = footer_y - 10
         entry_font, row_spacing = self._highscore_entry_layout(
             entries_start_y, entries_end_y
         )
         self._draw_centered(
-            "High Scores", title_y, (255, 255, 0), entry_font
+            "High Scores", title_y, (255, 255, 0), self.title_font
         )
         self._draw_highscore_entries(
             entries_start_y, row_spacing, font=entry_font
