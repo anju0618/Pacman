@@ -27,6 +27,10 @@ htmlcov/
 # =========================
 # Distribution / Packaging
 # =========================
+# PyInstallerのビルド成果物(build_package.sh / make package で再生成できる)
+build/
+dist/
+
 *.zip
 *.tar.gz
 *.pdf
