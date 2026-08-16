@@ -128,7 +128,6 @@ class Display:
             maze_data=self.maze_data,
             super_positions=corners,
             excluded_positions=[(start_x, start_y)],
-            count=self.config.pacgum,
         )
 
         self.mode_schedule_index = 0

@@ -17,34 +17,21 @@ def test_places_super_pacgums_at_given_positions() -> None:
         maze_data=MAZE,
         super_positions=SUPER_POSITIONS,
         excluded_positions=[CENTER],
-        count=0,
     )
 
     assert pacgum.super_positions == set(SUPER_POSITIONS)
-    assert pacgum.normal_positions == set()
 
 
-def test_normal_pacgums_avoid_walls_super_and_excluded_cells() -> None:
+def test_normal_pacgums_fill_every_remaining_open_cell() -> None:
+    """VI.1/VI.4: pacgums belong in most corridors, so every open cell
+    that isn't the spawn point or a super-pacgum corner gets one."""
     pacgum = Pacgum(
         maze_data=MAZE,
         super_positions=SUPER_POSITIONS,
         excluded_positions=[CENTER],
-        count=100,
     )
 
     assert pacgum.normal_positions == AVAILABLE_NORMAL_CELLS
-
-
-def test_normal_pacgum_count_is_clamped_to_requested_amount() -> None:
-    pacgum = Pacgum(
-        maze_data=MAZE,
-        super_positions=SUPER_POSITIONS,
-        excluded_positions=[CENTER],
-        count=2,
-    )
-
-    assert len(pacgum.normal_positions) == 2
-    assert pacgum.normal_positions <= AVAILABLE_NORMAL_CELLS
 
 
 def test_collect_removes_and_reports_the_matching_kind() -> None:
@@ -52,7 +39,6 @@ def test_collect_removes_and_reports_the_matching_kind() -> None:
         maze_data=MAZE,
         super_positions=SUPER_POSITIONS,
         excluded_positions=[CENTER],
-        count=100,
     )
 
     assert pacgum.collect((1, 1)) is PacgumKind.SUPER
@@ -70,7 +56,6 @@ def test_is_empty_once_every_pacgum_is_collected() -> None:
         maze_data=MAZE,
         super_positions=SUPER_POSITIONS,
         excluded_positions=[CENTER],
-        count=100,
     )
     assert not pacgum.is_empty()
 
