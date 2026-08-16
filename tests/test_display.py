@@ -3,7 +3,7 @@ from pathlib import Path
 import pygame
 import pytest
 
-from src.enums import GameState, GhostMode
+from src.enums import Direction, GameState, GhostMode
 from src.game_state import PacmanGameContext
 from src.graphic.display import Display
 from src.highscore import HighScoreEntry, HighScoreSystem
@@ -199,6 +199,32 @@ def test_touching_a_dangerous_ghost_costs_a_life_and_resets(
         pygame.quit()
 
 
+def test_frightened_ghosts_recover_once_the_timer_runs_out(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SDL_VIDEODRIVER", "dummy")
+    game_context = PacmanGameContext(
+        config=Config(level=[{"id": 1, "width": 9, "height": 9}])
+    )
+    display = Display(game_context)
+    try:
+        display._trigger_frightened()
+        assert all(
+            ghost.mode == GhostMode.FRIGHTENED for ghost in display.ghosts
+        )
+
+        # A single call with a delta_time larger than FRIGHTENED_DURATION
+        # must be enough to bring every ghost back out of FRIGHTENED.
+        display._advance_ghost_modes(999.0)
+
+        assert all(
+            ghost.mode != GhostMode.FRIGHTENED for ghost in display.ghosts
+        )
+        assert display.frightened_timer == 0.0
+    finally:
+        pygame.quit()
+
+
 def test_cheat_invincibility_ignores_dangerous_ghost_contact(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -251,12 +277,26 @@ def test_tunnel_wrap_teleports_across_the_maze(
     try:
         width = len(display.maze_data[0])
         display.pacman.y = float(display.tunnel_row)
-        display.pacman.x = -1.0
 
+        # The maze always walls off its outer boundary, so Pac-Man can
+        # never actually reach x < 0 or x >= width — he gets physically
+        # blocked right at the edge instead. The wrap must therefore
+        # trigger from *at* the boundary while still facing outward,
+        # not from having already crossed it.
+        display.pacman.direction = Direction.LEFT
+        display.pacman.x = 0.0
         display._apply_tunnel_wrap(display.pacman)
         assert display.pacman.x == pytest.approx(width - 1.0)
 
-        display.pacman.x = float(width)
+        display.pacman.direction = Direction.RIGHT
+        display.pacman.x = float(width - 1)
+        display._apply_tunnel_wrap(display.pacman)
+        assert display.pacman.x == pytest.approx(0.0)
+
+        # Facing away from the edge (or not on the tunnel row) must not
+        # trigger a wrap.
+        display.pacman.direction = Direction.RIGHT
+        display.pacman.x = 0.0
         display._apply_tunnel_wrap(display.pacman)
         assert display.pacman.x == pytest.approx(0.0)
     finally:

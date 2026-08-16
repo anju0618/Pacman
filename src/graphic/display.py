@@ -15,15 +15,20 @@ from src.game_state import PacmanGameContext
 from src.highscore import HighScoreSystem
 from src.pacgum import Pacgum, PacgumKind
 from src.parse import Config, DEFAULT_LEVELS
+from src.graphic.sprites import SpriteSet
 
-GHOST_COLORS: dict[type, tuple[int, int, int]] = {
-    Blinky: (255, 0, 0),
-    Pinky: (255, 184, 255),
-    Inky: (0, 255, 255),
-    Clyde: (255, 184, 82),
+GHOST_SPRITE_KEYS: dict[type, str] = {
+    Blinky: "blinky",
+    Pinky: "pinky",
+    Inky: "inky",
+    Clyde: "clyde",
 }
-FRIGHTENED_COLOR = (33, 33, 222)
-EATEN_COLOR = (200, 200, 200)
+PACMAN_ROTATION_DEGREES: dict[Direction, int] = {
+    Direction.RIGHT: 0,
+    Direction.UP: 90,
+    Direction.LEFT: 180,
+    Direction.DOWN: 270,
+}
 
 MENU_OPTIONS = ("Start Game", "View Highscores", "Instructions", "Exit")
 END_STATES = (GameState.GAME_OVER, GameState.VICTORY)
@@ -39,6 +44,12 @@ SCATTER_CHASE_SCHEDULE: tuple[tuple[GhostMode, float], ...] = (
 )
 FRIGHTENED_DURATION = 6.0
 CHEAT_SPEED_FACTOR = 1.5
+CHOMP_INTERVAL = 0.1
+# closed -> half -> full open -> half -> (repeat): a natural chomp cycle
+# instead of a plain open/closed toggle.
+PACMAN_CHOMP_FRAMES = (
+    "pacman_closed", "pacman_half", "pacman_open", "pacman_half"
+)
 
 
 class Display:
@@ -68,8 +79,10 @@ class Display:
         self.score_submitted = False
         self._score_entry_state: GameState | None = None
         self.ghosts_frozen = False
+        self.pacman_chomp_timer = 0.0
 
         self._load_level()
+        self.sprites = SpriteSet()
         self.clock = pygame.time.Clock()
         self.title_font = pygame.font.Font(None, 80)
         self.text_font = pygame.font.Font(None, 50)
@@ -169,13 +182,25 @@ class Display:
             if ghost.mode not in (GhostMode.FRIGHTENED, GhostMode.EATEN):
                 ghost.set_mode(mode)
 
+    def _end_frightened(self) -> None:
+        """イジケ状態のゴーストだけを現在の局面へ復帰させる
+
+        _apply_scheduled_mode()はFRIGHTENED中のゴーストを意図的に
+        スキップするため、イジケ終了時にそれを呼んでも対象のゴースト
+        自身が除外されて永久にFRIGHTENEDのまま止まってしまう。
+        """
+        mode, _ = SCATTER_CHASE_SCHEDULE[self.mode_schedule_index]
+        for ghost in self.ghosts:
+            if ghost.mode == GhostMode.FRIGHTENED:
+                ghost.set_mode(mode)
+
     def _advance_ghost_modes(self, delta_time: float) -> None:
         """Scatter/Chaseのスケジュール進行、およびFRIGHTENEDの残り時間管理"""
         if self.frightened_timer > 0:
             self.frightened_timer -= delta_time
             if self.frightened_timer <= 0:
                 self.frightened_timer = 0.0
-                self._apply_scheduled_mode()
+                self._end_frightened()
             return
 
         self.mode_timer += delta_time
@@ -250,15 +275,28 @@ class Display:
         self.game_context.time_remaining = self.config.level_max_time
 
     def _apply_tunnel_wrap(self, character: Character) -> None:
-        """トンネル行にいるキャラクターが端まで来たら反対側へ折り返す"""
+        """トンネル行の端まで来たキャラクターを反対側へ運ぶ
+
+        マス目の範囲外は常に壁として扱われる（Character._collides_with_wall）
+        ため、x座標が実際に0未満やwidth以上へ到達することはない。従って
+        「範囲外に出たら戻す」という判定では発火せず、キャラクターは端で
+        物理的にブロックされて詰まったままになる。ここでは範囲外に出る
+        のを待たず、端のマスで外向きに壁へ突き当たった時点でワープする。
+        """
         if round(character.y) != self.tunnel_row:
             return
 
         width = len(self.maze_data[0])
-        if character.x < -0.5:
-            character.x += width
-        elif character.x > width - 0.5:
-            character.x -= width
+        if (
+            character.direction == Direction.LEFT
+            and character.x <= character.radius
+        ):
+            character.x = float(width - 1)
+        elif (
+            character.direction == Direction.RIGHT
+            and character.x >= width - 1 - character.radius
+        ):
+            character.x = 0.0
 
     def _ensure_score_entry(self) -> None:
         state = self.game_context.state
@@ -575,20 +613,16 @@ class Display:
                 )
 
     def _draw_pacgums(self) -> None:
-        normal_radius = max(1, int(self.cell_size * 0.16))
+        pacgum_sprite = self.sprites.get("pacgum", self.cell_size)
         for x, y in self.pacgum.normal_positions:
-            px = x * self.cell_size + self.cell_size // 2
-            py = y * self.cell_size + self.cell_size // 2
-            pygame.draw.circle(
-                self.screen, (255, 220, 170), (px, py), normal_radius
+            self.screen.blit(
+                pacgum_sprite, (x * self.cell_size, y * self.cell_size)
             )
 
-        super_radius = max(1, int(self.cell_size * 0.32))
+        super_sprite = self.sprites.get("super_pacgum", self.cell_size)
         for x, y in self.pacgum.super_positions:
-            px = x * self.cell_size + self.cell_size // 2
-            py = y * self.cell_size + self.cell_size // 2
-            pygame.draw.circle(
-                self.screen, (255, 220, 170), (px, py), super_radius
+            self.screen.blit(
+                super_sprite, (x * self.cell_size, y * self.cell_size)
             )
 
     def _draw_hud(self) -> None:
@@ -604,16 +638,14 @@ class Display:
     def _render_game(self) -> None:
         self.screen.fill((0, 0, 0))
 
+        wall_sprite = self.sprites.get("wall", self.cell_size)
         for y, row in enumerate(self.maze_data):
             for x, cell in enumerate(row):
                 if cell == 1:
-                    rect = (
-                        x * self.cell_size,
-                        y * self.cell_size,
-                        self.cell_size,
-                        self.cell_size,
+                    self.screen.blit(
+                        wall_sprite,
+                        (x * self.cell_size, y * self.cell_size),
                     )
-                    pygame.draw.rect(self.screen, (0, 0, 255), rect)
 
         delta_time = self.clock.get_time() / 1000.0
 
@@ -625,8 +657,13 @@ class Display:
 
         self._advance_ghost_modes(delta_time)
 
+        position_before_move = (self.pacman.x, self.pacman.y)
         self.pacman.update(self.maze_data)
         self._apply_tunnel_wrap(self.pacman)
+        if (self.pacman.x, self.pacman.y) != position_before_move:
+            self.pacman_chomp_timer += delta_time
+        else:
+            self.pacman_chomp_timer = 0.0
 
         collected = self.pacgum.collect(self.pacman.get_current_grid())
         if collected == PacgumKind.NORMAL:
@@ -651,25 +688,34 @@ class Display:
 
         self._draw_pacgums()
 
-        pac_px = int(self.pacman.x * self.cell_size + self.cell_size / 2)
-        pac_py = int(self.pacman.y * self.cell_size + self.cell_size / 2)
-        radius = int(self.pacman.radius * self.cell_size)
-        pygame.draw.circle(
-            self.screen, (255, 255, 0), (pac_px, pac_py), radius
+        chomp_phase = (
+            int(self.pacman_chomp_timer / CHOMP_INTERVAL)
+            % len(PACMAN_CHOMP_FRAMES)
+        )
+        pacman_sprite_key = PACMAN_CHOMP_FRAMES[chomp_phase]
+        pacman_sprite = self.sprites.get(pacman_sprite_key, self.cell_size)
+        rotated_pacman = pygame.transform.rotate(
+            pacman_sprite, PACMAN_ROTATION_DEGREES[self.pacman.direction]
+        )
+        pac_px = self.pacman.x * self.cell_size + self.cell_size / 2
+        pac_py = self.pacman.y * self.cell_size + self.cell_size / 2
+        self.screen.blit(
+            rotated_pacman, rotated_pacman.get_rect(center=(pac_px, pac_py))
         )
 
         for ghost in self.ghosts:
-            ghost_px = int(ghost.x * self.cell_size + self.cell_size / 2)
-            ghost_py = int(ghost.y * self.cell_size + self.cell_size / 2)
-            ghost_radius = int(ghost.radius * self.cell_size)
             if ghost.mode == GhostMode.FRIGHTENED:
-                color = FRIGHTENED_COLOR
+                sprite_key = "frightened"
             elif ghost.mode == GhostMode.EATEN:
-                color = EATEN_COLOR
+                sprite_key = "eaten"
             else:
-                color = GHOST_COLORS[type(ghost)]
-            pygame.draw.circle(
-                self.screen, color, (ghost_px, ghost_py), ghost_radius
+                sprite_key = GHOST_SPRITE_KEYS[type(ghost)]
+            ghost_sprite = self.sprites.get(sprite_key, self.cell_size)
+            ghost_px = ghost.x * self.cell_size + self.cell_size / 2
+            ghost_py = ghost.y * self.cell_size + self.cell_size / 2
+            self.screen.blit(
+                ghost_sprite,
+                ghost_sprite.get_rect(center=(ghost_px, ghost_py)),
             )
 
         self._draw_hud()
