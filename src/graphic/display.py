@@ -3,13 +3,14 @@ display config mod
 """
 import pygame
 from src.maze_loader import MazeLoader
+from src.character.base import Character
 from src.character.pacman import Pacman
 from src.character.ghost import Ghost
 from src.character.blinky import Blinky
 from src.character.pinky import Pinky
 from src.character.inky import Inky
 from src.character.clyde import Clyde
-from src.enums import Direction, GameState
+from src.enums import Direction, GameState, GhostMode
 from src.game_state import PacmanGameContext
 from src.highscore import HighScoreSystem
 from src.pacgum import Pacgum, PacgumKind
@@ -21,12 +22,23 @@ GHOST_COLORS: dict[type, tuple[int, int, int]] = {
     Inky: (0, 255, 255),
     Clyde: (255, 184, 82),
 }
+FRIGHTENED_COLOR = (33, 33, 222)
+EATEN_COLOR = (200, 200, 200)
 
 MENU_OPTIONS = ("Start Game", "View Highscores", "Instructions", "Exit")
 END_STATES = (GameState.GAME_OVER, GameState.VICTORY)
 MAX_WINDOW_SIZE = 800
 MAX_CELL_SIZE = 30
 MIN_CELL_SIZE = 8
+
+# Scatter/Chaseを交互に切り替えるスケジュール（本家ライクな簡略版）。
+# FRIGHTENED中は一時停止し、終了後はこのスケジュールへ復帰する。
+SCATTER_CHASE_SCHEDULE: tuple[tuple[GhostMode, float], ...] = (
+    (GhostMode.SCATTER, 7.0),
+    (GhostMode.CHASE, 20.0),
+)
+FRIGHTENED_DURATION = 6.0
+CHEAT_SPEED_FACTOR = 1.5
 
 
 class Display:
@@ -55,6 +67,7 @@ class Display:
         self.score_message = ""
         self.score_submitted = False
         self._score_entry_state: GameState | None = None
+        self.ghosts_frozen = False
 
         self._load_level()
         self.clock = pygame.time.Clock()
@@ -79,10 +92,17 @@ class Display:
         )
 
         start_x, start_y = self.maze_loader.find_center_start_position()
+
+        # ワープトンネル: 生成された迷路は外周が常に壁なので、Pacmanの
+        # 出発行をまるごと開通させて左右端をトンネルの出入り口にする。
+        self.tunnel_row = start_y
+        self.maze_data[start_y] = [0] * len(self.maze_data[start_y])
+
         self.pacman = Pacman(float(start_x), float(start_y))
+        if self.game_context.is_cheat_mode_active:
+            self.pacman.speed *= CHEAT_SPEED_FACTOR
 
         corners = self.maze_loader.find_corner_positions()
-        self.goal_position = corners[-1]
         ghost_classes = (Blinky, Pinky, Inky, Clyde)
         self.ghosts: list[Ghost] = [
             ghost_cls(float(corner_x), float(corner_y))
@@ -96,6 +116,11 @@ class Display:
             excluded_positions=[(start_x, start_y)],
             count=self.config.pacgum,
         )
+
+        self.mode_schedule_index = 0
+        self.mode_timer = 0.0
+        self.frightened_timer = 0.0
+        self._apply_scheduled_mode()
 
         screen_width = len(self.maze_data[0]) * self.cell_size
         screen_height = len(self.maze_data) * self.cell_size
@@ -122,8 +147,8 @@ class Display:
         self._load_level()
 
     def is_cleared(self) -> bool:
-        """Return whether Pac-Man reached the bottom-right passage."""
-        return self.pacman.get_current_grid() == self.goal_position
+        """Return whether every pacgum on this level has been collected."""
+        return self.pacgum.is_empty()
 
     def advance_to_next_level(self) -> bool:
         """クリア判定後にConfigの次の迷路へ進む。"""
@@ -136,6 +161,104 @@ class Display:
         self.current_level_index = next_level_index
         self._load_level()
         return True
+
+    def _apply_scheduled_mode(self) -> None:
+        """FRIGHTENED/EATEN中でないゴーストを現在のScatter/Chase局面へ揃える"""
+        mode, _ = SCATTER_CHASE_SCHEDULE[self.mode_schedule_index]
+        for ghost in self.ghosts:
+            if ghost.mode not in (GhostMode.FRIGHTENED, GhostMode.EATEN):
+                ghost.set_mode(mode)
+
+    def _advance_ghost_modes(self, delta_time: float) -> None:
+        """Scatter/Chaseのスケジュール進行、およびFRIGHTENEDの残り時間管理"""
+        if self.frightened_timer > 0:
+            self.frightened_timer -= delta_time
+            if self.frightened_timer <= 0:
+                self.frightened_timer = 0.0
+                self._apply_scheduled_mode()
+            return
+
+        self.mode_timer += delta_time
+        _, duration = SCATTER_CHASE_SCHEDULE[self.mode_schedule_index]
+        if self.mode_timer >= duration:
+            self.mode_timer = 0.0
+            self.mode_schedule_index = (
+                self.mode_schedule_index + 1
+            ) % len(SCATTER_CHASE_SCHEDULE)
+            self._apply_scheduled_mode()
+
+    def _trigger_frightened(self) -> None:
+        """スーパーパグムを食べた時、EATEN中でない全ゴーストをイジケさせる"""
+        self.frightened_timer = FRIGHTENED_DURATION
+        for ghost in self.ghosts:
+            if ghost.mode != GhostMode.EATEN:
+                ghost.set_mode(GhostMode.FRIGHTENED)
+
+    def _resolve_eaten_ghosts(self) -> None:
+        """巣に帰り着いたEATENゴーストを現在の局面へ復帰させる"""
+        mode, _ = SCATTER_CHASE_SCHEDULE[self.mode_schedule_index]
+        for ghost in self.ghosts:
+            if (
+                ghost.mode == GhostMode.EATEN
+                and ghost.get_current_grid() == ghost.home_position
+            ):
+                ghost.set_mode(mode)
+
+    def _check_ghost_collisions(self) -> None:
+        """Pacmanとゴーストの円同士の当たり判定"""
+        for ghost in self.ghosts:
+            if ghost.mode == GhostMode.EATEN:
+                continue
+
+            dx = self.pacman.x - ghost.x
+            dy = self.pacman.y - ghost.y
+            contact_distance = self.pacman.radius + ghost.radius
+            if dx * dx + dy * dy >= contact_distance * contact_distance:
+                continue
+
+            if ghost.mode == GhostMode.FRIGHTENED:
+                ghost.set_mode(GhostMode.EATEN)
+                self.game_context.add_score(self.config.points_per_ghost)
+            elif not self.game_context.is_cheat_mode_active:
+                self._handle_life_lost()
+                return
+
+    def _handle_life_lost(self) -> None:
+        """残機を減らし（チート無敵時は減らさず）、初期配置へ戻す"""
+        if not self.game_context.is_cheat_mode_active:
+            self.game_context.lose_life()
+        self._reset_positions()
+
+    def _reset_positions(self) -> None:
+        """Pacman・ゴーストを初期位置へ戻し、モード・タイマーをリセットする"""
+        start_x, start_y = self.maze_loader.find_center_start_position()
+        self.pacman.x, self.pacman.y = float(start_x), float(start_y)
+        self.pacman.direction = Direction.RIGHT
+        self.pacman.next_direction = None
+
+        self.mode_schedule_index = 0
+        self.mode_timer = 0.0
+        self.frightened_timer = 0.0
+        mode, _ = SCATTER_CHASE_SCHEDULE[self.mode_schedule_index]
+        for ghost in self.ghosts:
+            home_x, home_y = ghost.home_position
+            ghost.x, ghost.y = float(home_x), float(home_y)
+            ghost.direction = Direction.RIGHT
+            ghost.next_direction = None
+            ghost.set_mode(mode)
+
+        self.game_context.time_remaining = self.config.level_max_time
+
+    def _apply_tunnel_wrap(self, character: Character) -> None:
+        """トンネル行にいるキャラクターが端まで来たら反対側へ折り返す"""
+        if round(character.y) != self.tunnel_row:
+            return
+
+        width = len(self.maze_data[0])
+        if character.x < -0.5:
+            character.x += width
+        elif character.x > width - 0.5:
+            character.x -= width
 
     def _ensure_score_entry(self) -> None:
         state = self.game_context.state
@@ -234,6 +357,16 @@ class Display:
                 self.pacman.set_direction(Direction.RIGHT)
             elif event.key == pygame.K_ESCAPE:
                 self.game_context.state = GameState.PAUSED
+            elif (
+                event.key == pygame.K_f
+                and self.game_context.is_cheat_mode_active
+            ):
+                self.ghosts_frozen = not self.ghosts_frozen
+            elif (
+                event.key == pygame.K_n
+                and self.game_context.is_cheat_mode_active
+            ):
+                self.advance_to_next_level()
         elif state == GameState.PAUSED:
             if event.key in (pygame.K_ESCAPE, pygame.K_RETURN):
                 self.game_context.state = GameState.IN_GAME
@@ -294,10 +427,17 @@ class Display:
             "Arrow keys / WASD: move",
             "Esc: pause",
             "Eat every pacgum and avoid ghosts.",
+            "Eat a super pacgum to hunt ghosts for a while.",
             "Enter or Esc: back",
         )
         for index, line in enumerate(instructions):
-            self._draw_centered(line, 125 + index * 38, font=self.small_font)
+            self._draw_centered(line, 115 + index * 32, font=self.small_font)
+        if self.game_context.is_cheat_mode_active:
+            self._draw_centered(
+                "Cheat: F freezes ghosts, N skips the level",
+                115 + len(instructions) * 32 + 20,
+                (255, 220, 0), self.small_font
+            )
 
     def _render_pause(self) -> None:
         self.screen.fill((0, 0, 0))
@@ -352,6 +492,16 @@ class Display:
                 self.screen, (255, 220, 170), (px, py), super_radius
             )
 
+    def _draw_hud(self) -> None:
+        status = (
+            f"Score: {self.game_context.score}  "
+            f"Lives: {self.game_context.lives}  "
+            f"Level: {self.current_level}  "
+            f"Time: {max(0, int(self.game_context.time_remaining))}"
+        )
+        rendered = self.small_font.render(status, True, (255, 255, 255))
+        self.screen.blit(rendered, (6, 4))
+
     def _render_game(self) -> None:
         self.screen.fill((0, 0, 0))
 
@@ -366,16 +516,38 @@ class Display:
                     )
                     pygame.draw.rect(self.screen, (0, 0, 255), rect)
 
+        delta_time = self.clock.get_time() / 1000.0
+
+        self.game_context.time_remaining -= delta_time
+        if self.game_context.time_remaining <= 0:
+            self._handle_life_lost()
+            if self.game_context.state != GameState.IN_GAME:
+                return
+
+        self._advance_ghost_modes(delta_time)
+
         self.pacman.update(self.maze_data)
+        self._apply_tunnel_wrap(self.pacman)
 
         collected = self.pacgum.collect(self.pacman.get_current_grid())
         if collected == PacgumKind.NORMAL:
             self.game_context.add_score(self.config.points_per_pacgum)
         elif collected == PacgumKind.SUPER:
             self.game_context.add_score(self.config.points_per_super_pacgum)
+            self._trigger_frightened()
 
         if self.is_cleared():
             self.advance_to_next_level()
+            return
+
+        if not self.ghosts_frozen:
+            for ghost in self.ghosts:
+                ghost.update(self.pacman, self.maze_data, self.ghosts)
+                self._apply_tunnel_wrap(ghost)
+        self._resolve_eaten_ghosts()
+
+        self._check_ghost_collisions()
+        if self.game_context.state != GameState.IN_GAME:
             return
 
         self._draw_pacgums()
@@ -388,14 +560,20 @@ class Display:
         )
 
         for ghost in self.ghosts:
-            ghost.update(self.pacman, self.maze_data, self.ghosts)
             ghost_px = int(ghost.x * self.cell_size + self.cell_size / 2)
             ghost_py = int(ghost.y * self.cell_size + self.cell_size / 2)
             ghost_radius = int(ghost.radius * self.cell_size)
-            color = GHOST_COLORS[type(ghost)]
+            if ghost.mode == GhostMode.FRIGHTENED:
+                color = FRIGHTENED_COLOR
+            elif ghost.mode == GhostMode.EATEN:
+                color = EATEN_COLOR
+            else:
+                color = GHOST_COLORS[type(ghost)]
             pygame.draw.circle(
                 self.screen, color, (ghost_px, ghost_py), ghost_radius
             )
+
+        self._draw_hud()
 
     def run(self) -> None:
         """

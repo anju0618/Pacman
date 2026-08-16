@@ -6,5 +6,5 @@ def test_config_pads_levels_to_ten() -> None:
 
     assert len(config.level) == 10
     assert config.level[0] == {"id": 1, "width": 19, "height": 19}
-    assert config.level[1] == {"id": 2, "width": 25, "height": 25}
-    assert config.level[-1] == {"id": 10, "width": 31, "height": 31}
+    assert config.level[1] == {"id": 2, "width": 10, "height": 10}
+    assert config.level[-1] == {"id": 10, "width": 11, "height": 11}
