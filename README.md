@@ -41,8 +41,10 @@ Other Makefile targets:
 - `make debug` — runs the game under `pdb`.
 - `make lint` / `make lint-strict` — `flake8` + `mypy`.
 - `make test` — runs the `pytest` suite.
-- `make clean` / `make fclean` — remove caches, or remove the virtual environment
-  as well.
+- `make package` — builds the distributable standalone executable (see
+  Packaging below).
+- `make clean` / `make fclean` — remove caches and build output, or remove the
+  virtual environment as well.
 
 **Controls**
 
@@ -67,6 +69,33 @@ Eat every pacgum on a level to clear it. Eating a super pacgum makes every ghost
 edible for a few seconds — eat them for bonus points before they recover.
 Touching a dangerous ghost costs a life; losing all lives ends the game. Clearing
 every level wins the game.
+
+### Packaging
+
+The game ships as a single self-contained executable, built with PyInstaller
+from `pacman.spec` (kept at the repository root, along with the
+`build_package.sh` build script, so the package can be regenerated on demand):
+
+```sh
+make package          # or: ./build_package.sh
+./dist/pacman         # the packaged game, no Python install required
+```
+
+The build bundles the sprites, the default `config.json` and `INSTRUCTIONS.txt`
+(controls, options and configuration reference) into the executable. Paths are
+resolved through `src/resources.py`, which transparently switches between the
+repository layout and PyInstaller's runtime extraction directory.
+
+Because a packaged game launched from a store front is double-clicked rather
+than run from a shell, the config argument is optional in the packaged build and
+falls back to the bundled `config.json`; running from source still takes the
+config file as its argument exactly as specified. Passing a custom config
+(`./dist/pacman my_config.json`) and `--cheat` both work on the packaged build
+as well.
+
+To distribute on Itch.io, zip `dist/pacman` together with `INSTRUCTIONS.txt` and
+upload it as an unlisted build; for Steam, register the same executable as the
+build's launch target.
 
 ### Configuration
 
@@ -231,9 +260,12 @@ gantt
     Test suite growth alongside every feature            :done, c1, 2026-08-06, 2026-08-16
     Docs (README, TASK.md, gant.md)                          :done, c2, 2026-08-16, 1d
 
+    section Packaging & docs
+    Docstring pass (PEP257, all of src/)                 :done, p1, 2026-08-16, 1d
+    PyInstaller packaging (spec, build script)              :done, p2, 2026-08-16, 1d
+
     section Remaining
-    Docstring pass (PEP257, ~56 functions)                     :active, r1, 2026-08-17, 2d
-    Steam / Itch.io packaging                                    :r2, after r1, 3d
+    Upload the build to Steam / Itch.io                        :r1, 2026-08-17, 2d
 ```
 
 ### Resources
@@ -297,7 +329,8 @@ python3 pac-man.py <config.json> [--cheat]
 - `make debug` — `pdb`上でゲームを実行。
 - `make lint` / `make lint-strict` — `flake8` + `mypy`。
 - `make test` — `pytest`によるテストスイートを実行。
-- `make clean` / `make fclean` — キャッシュを削除、または仮想環境ごと削除。
+- `make package` — 配布用の単一実行ファイルをビルド(下の「パッケージング」を参照)。
+- `make clean` / `make fclean` — キャッシュとビルド成果物を削除、または仮想環境ごと削除。
 
 **操作方法**
 
@@ -322,6 +355,32 @@ python3 pac-man.py <config.json> [--cheat]
 が食べられる状態(Frightened)になり、その間に触れるとボーナス得点でゴーストを
 倒せる。通常状態のゴーストに触れると残機が1減り、残機が0になるとゲームオーバー。
 全レベルをクリアするとゲームクリア。
+
+### パッケージング
+
+本ゲームはPyInstallerで単一の自己完結型実行ファイルとして配布する。ピアレビュー中に
+パッケージの再生成を求められる可能性があるため、specファイル(`pacman.spec`)と
+ビルドスクリプト(`build_package.sh`)はリポジトリのルートに置いてある。
+
+```sh
+make package          # または: ./build_package.sh
+./dist/pacman         # Python環境なしで動作するパッケージ版
+```
+
+ビルド時に、スプライト画像・既定の`config.json`・`INSTRUCTIONS.txt`(操作方法・
+オプション・設定の説明)が実行ファイルへ同梱される。パスの解決は
+`src/resources.py`が担当し、リポジトリ上のレイアウトとPyInstallerの実行時
+展開ディレクトリを自動的に切り替える。
+
+ストアから起動されるパッケージ版はダブルクリックで起動され引数が渡されないため、
+パッケージ版に限り設定ファイルの指定を省略可能にし、同梱の`config.json`を
+既定値として使う(ソースから実行する場合は、課題指定どおり設定ファイルを引数に
+取る挙動のまま)。パッケージ版でも独自の設定ファイル指定
+(`./dist/pacman my_config.json`)と`--cheat`は問題なく動作する。
+
+Itch.ioで配布する場合は`dist/pacman`と`INSTRUCTIONS.txt`をzipにまとめて
+unlistedビルドとしてアップロードする。Steamの場合は同じ実行ファイルを
+ビルドの起動対象として登録する。
 
 ### 設定
 
@@ -476,9 +535,12 @@ gantt
     Test suite growth alongside every feature            :done, c1, 2026-08-06, 2026-08-16
     Docs (README, TASK.md, gant.md)                          :done, c2, 2026-08-16, 1d
 
+    section Packaging & docs
+    Docstring pass (PEP257, all of src/)                 :done, p1, 2026-08-16, 1d
+    PyInstaller packaging (spec, build script)              :done, p2, 2026-08-16, 1d
+
     section Remaining
-    Docstring pass (PEP257, ~56 functions)                     :active, r1, 2026-08-17, 2d
-    Steam / Itch.io packaging                                    :r2, after r1, 3d
+    Upload the build to Steam / Itch.io                        :r1, 2026-08-17, 2d
 ```
 
 ### 参考資料

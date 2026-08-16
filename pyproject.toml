@@ -16,6 +16,11 @@ dev = [
     "mypy>=2.3.0",
     "pytest>=9.1.1",
 ]
+# 配布用パッケージのビルド(build_package.sh / make package)専用。
+# ゲームの実行には不要なので、通常の依存とは分けてある。
+package = [
+    "pyinstaller>=6.0.0",
+]
 
 [tool.uv.sources]
 mazegenerator = { path = "package/mazegenerator-2.1.0-py3-none-any.whl" }

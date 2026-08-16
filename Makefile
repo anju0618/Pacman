@@ -1,4 +1,4 @@
-.PHONY: install run debug clean fclean lint lint-strict test
+.PHONY: install run debug clean fclean lint lint-strict test package
 
 CONFIG = config.json
 SRC_DIR = src
@@ -23,6 +23,7 @@ clean:
 	find . -type f -name ".DS_Store" -delete
 	find . -type f -name "*~" -delete
 	rm -rf .mypy_cache .ruff_cache .pytest_cache .coverage htmlcov $(SRC_DIR)/__pycache__
+	rm -rf build dist
 
 fclean: clean
 	@echo "Performing full clean..."
@@ -45,3 +46,7 @@ lint-strict:
 test:
 	@echo "Running test suite with pytest..."
 	PYTHONPATH=. uv run python -m pytest $(TEST_DIR) -v
+
+package:
+	@echo "Building the distributable game package..."
+	./build_package.sh

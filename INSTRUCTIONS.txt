@@ -1,0 +1,81 @@
+================================================================
+ Pac-Man - a 42 school project by amakino, takawaka
+================================================================
+
+HOW TO PLAY
+-----------
+Eat every pacgum (small dot) in the maze to clear the level.
+Clear every level to win the game.
+
+Eating a super pacgum (the large dot in each of the four corners)
+turns all ghosts blue for a few seconds. While they are blue you
+can eat them for bonus points. Once they recover, they are
+dangerous again.
+
+Touching a dangerous ghost costs you a life. Lose all your lives
+and the game is over. Each level also has a time limit; running
+out of time costs a life as well.
+
+
+CONTROLS
+--------
+  Arrow keys / WASD ....... Move Pac-Man
+  Enter ................... Confirm a menu selection
+  Esc ..................... Pause / go back
+  M (while paused) ........ Return to the main menu
+
+
+SCORING
+-------
+  Pacgum .................. 10 points
+  Super pacgum ............ 50 points
+  Ghost (while blue) ...... 200 points
+
+Your score never decreases. At the end of a game you can enter a
+name (up to 10 letters, digits or spaces) to save it to the
+top-10 high score table.
+
+
+CHEAT MODE
+----------
+Cheat mode exists so a reviewer can test every feature quickly.
+Launch the game with the --cheat flag:
+
+    pacman --cheat
+
+It enables:
+  - Invincibility (ghosts can no longer cost you a life)
+  - Two extra lives
+  - 1.5x movement speed
+  - F ... freeze / unfreeze all ghosts
+  - N ... instantly clear the current level
+
+
+CONFIGURATION
+-------------
+The game reads its settings from a JSON file. The packaged build
+uses the bundled config.json automatically, but you can supply
+your own:
+
+    pacman my_config.json
+
+Lines starting with '#' are treated as comments and ignored.
+Unknown keys are ignored, and any missing or invalid value falls
+back to a safe default, so a malformed file never crashes the
+game.
+
+Available keys:
+
+  highscore_filename ...... where the high score table is saved
+  seed .................... fixed random seed for level 1's maze
+  lives ................... starting lives (default 3)
+  level_max_time .......... seconds allowed per level (default 90)
+  points_per_pacgum ....... score for a pacgum (default 10)
+  points_per_super_pacgum . score for a super pacgum (default 50)
+  points_per_ghost ........ score for eating a ghost (default 200)
+  level ................... array of {id, width, height} entries
+                            describing each level's maze size
+
+The level array is padded with built-in defaults up to a minimum
+of 10 levels. Level 1 always uses the fixed seed above; every
+later level is generated randomly.

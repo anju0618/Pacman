@@ -14,6 +14,9 @@
 0816 amakino パグムの配置・回収・スコア加算を実装。ゴーストのGhostMode切替（Scatter/Chase/Frightened/Eaten）、Pacman-ゴースト接触判定（残機減少・リスポーン）、タイムリミット処理、ワープトンネル、チートモードの効果（無敵・レベルスキップ・ゴースト凍結・残機増加・速度上昇）、HUD、画像スプライト描画・パックマンのパクパクアニメーションを実装。README（英語+日本語）を執筆。
 0816 takawaka ウィンドウサイズ・キャラクター速度を調整
 0816 amakino 課題PDFを読み直して監査。バグ2件（レベル間でタイマーが引き継がれる、迷路生成失敗時にクラッシュする）とUI不足（Victory画面に祝福メッセージが無い）を修正。パグムの配置を「ほとんどの通路を埋める」仕様（VI.1/VI.4）に合わせて個数上限を撤廃。
+0816 amakino 全コードに日本語docstring・解説コメントを付与（PEP257、課題III.1対応）。
+0816 amakino 提出前の最終チェック。make lintがプロジェクト全体(`.`)を検査しておらずpac-man.pyが未検査だった問題を修正（.flake8とmypyのexclude設定を追加）。mypy --strictのエラーを解消しmake lint-strictも通るようにした。欠落していたsrc/graphic/__init__.pyを追加。
+0816 amakino パッケージング（課題VII）を実装。PyInstallerによる単一実行ファイル化（pacman.spec / build_package.sh をリポジトリルートに配置、make packageで再生成可能）。スプライト・config.json・INSTRUCTIONS.txtを同梱し、src/resources.pyでソース実行時とパッケージ実行時のパス解決を透過的に切り替え。パッケージ版は引数なしのダブルクリック起動にも対応。終了時に残っていたデバッグ出力を削除。
 
 
 ```mermaid
@@ -43,7 +46,10 @@ gantt
     Test suite growth alongside every feature            :done, c1, 2026-08-06, 2026-08-16
     Docs (README, TASK.md, gant.md)                          :done, c2, 2026-08-16, 1d
 
+    section Packaging & docs
+    Docstring pass (PEP257, all of src/)                 :done, p1, 2026-08-16, 1d
+    PyInstaller packaging (spec, build script)              :done, p2, 2026-08-16, 1d
+
     section Remaining
-    Docstring pass (PEP257, ~56 functions)                     :active, r1, 2026-08-17, 2d
-    Steam / Itch.io packaging                                    :r2, after r1, 3d
+    Upload the build to Steam / Itch.io                        :r1, 2026-08-17, 2d
 ```
