@@ -1,5 +1,11 @@
 """
-Module defining the ghost characters and their AI.
+ゴーストキャラクターとそのAIを定義するモジュール。
+
+移動の物理演算はCharacterに任せ、Ghostは「次にどちらへ進むか」を
+決めるAI部分(モード管理・BFS経路探索)を担当する。4匹の個性
+(Blinky/Pinky/Inky/Clyde)はサブクラスがdetermine_direction()だけを
+オーバーライドして表現し、モード切替(Scatter/Chase/Frightened/Eaten)
+自体はこの基底クラスに一元化してある。
 """
 import random
 from collections import deque
@@ -10,8 +16,11 @@ from src.character.pacman import Pacman
 
 class Ghost(Character):
     """
-    Ghost base class
-    4匹ごと違う
+    ゴーストの基底クラス。移動のAI部分(ターゲット決定・経路探索・
+    モード管理)を持つ。4匹ごとの個性の違いはサブクラスが
+    determine_direction()をオーバーライドするだけで表現され、
+    それ以外のロジック(モード切替・BFS探索・振動防止など)は
+    完全に共通で、この基底クラスにまとめてある。
     """
 
     FRIGHTENED_SPEED_FACTOR = 0.5
@@ -23,6 +32,14 @@ class Ghost(Character):
         start_y: float,
         ghost_type: GhostType
     ) -> None:
+        """出現位置(四隅)と種類を受け取り、初期状態を整える。
+
+        Args:
+            start_x: 出現位置のグリッドx座標(四隅のいずれか)。
+            start_y: 出現位置のグリッドy座標(四隅のいずれか)。
+            ghost_type: このゴーストの種類(Blinky/Pinky/Inky/Clyde)。
+                描画時の色分けなどに使う。
+        """
         super().__init__(start_x, start_y)
         self.speed *= 0.8
         self.base_speed: float = self.speed
@@ -268,6 +285,7 @@ class Ghost(Character):
     def _get_neighbor_grid(
         grid: tuple[int, int], direction: Direction
     ) -> tuple[int, int]:
+        """指定マスからdirection方向へ1マス進んだグリッド座標を返す。"""
         x, y = grid
         if direction == Direction.UP:
             return x, y - 1
@@ -281,6 +299,7 @@ class Ghost(Character):
     def _is_open_cell(
         maze_data: list[list[int]], grid: tuple[int, int]
     ) -> bool:
+        """指定グリッド座標が迷路の範囲内かつ通路(0)であるかを判定する。"""
         x, y = grid
         return (
             0 <= y < len(maze_data)
@@ -294,8 +313,22 @@ class Ghost(Character):
         target_x: int,
         target_y: int
     ) -> Direction:
-        """
-        available_directions = 壁ではなく、来た道でない方向のリスト
+        """BFSが使えない場合のフォールバック: 直線距離が最短の方向を選ぶ。
+
+        BFSによる最短経路探索(decide_next_direction_bfs)がターゲットに
+        到達できない場合(別の孤立した領域にいる等)のフォールバックと
+        して使う、シンプルな貪欲法。各候補方向へ1マス進んだ時の
+        ターゲットまでのユークリッド距離(の2乗)を比較し、最も近づく
+        方向を選ぶ。同距離の場合は_tie_breakerで優先順位を決める。
+
+        Args:
+            available_directions: 壁ではなく、来た道でない方向のリスト
+                (get_available_directionsの戻り値)。
+            target_x: 目標地点のグリッドx座標。
+            target_y: 目標地点のグリッドy座標。
+
+        Returns:
+            選ばれた方向。available_directionsが空なら現在の向きを維持する。
         """
 
         if not available_directions:
@@ -322,6 +355,7 @@ class Ghost(Character):
         return best_direction
 
     def _opposite_direction(self, direction: Direction) -> Direction:
+        """指定方向の真逆(180度反対)の方向を返す。"""
         opposite_of = {
             Direction.UP: Direction.DOWN,
             Direction.DOWN: Direction.UP,
@@ -331,6 +365,10 @@ class Ghost(Character):
         return opposite_of[direction]
 
     def _tie_breaker(self, dir1: Direction, dir2: Direction) -> Direction:
+        """2方向が同じ距離で並んだ時に選ぶ方を決める(優先順位: 上>左>下>右)。
+
+        本家パックマンのゴーストAIの仕様に合わせた固定優先順位。
+        """
         priority = {
             Direction.UP: 1,
             Direction.LEFT: 2,

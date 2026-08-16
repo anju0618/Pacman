@@ -25,6 +25,16 @@ class Pacgum:
             super_positions: list[tuple[int, int]],
             excluded_positions: Iterable[tuple[int, int]],
             ) -> None:
+        """迷路データを元に、通常パグムとスーパーパグムを配置する。
+
+        Args:
+            maze_data: 壁=1/通路=0のバイナリグリッド(MazeLoader由来)。
+            super_positions: スーパーパグムを置く座標(通常は迷路の
+                四隅、MazeLoader.find_corner_positions()の戻り値)。
+            excluded_positions: パグムを置かない座標
+                (Pacmanの初期位置など)。super_positionsとあわせて
+                除外集合として扱う。
+        """
         self.super_positions: set[tuple[int, int]] = set(super_positions)
 
         excluded = set(excluded_positions) | self.super_positions
@@ -37,7 +47,15 @@ class Pacgum:
         maze_data: list[list[int]],
         excluded_positions: set[tuple[int, int]],
     ) -> list[tuple[int, int]]:
-        """壁でも除外対象でもない通路セルの座標(x, y)を列挙する"""
+        """壁でも除外対象でもない通路セルの座標(x, y)を列挙する。
+
+        Args:
+            maze_data: 壁=1/通路=0のバイナリグリッド。
+            excluded_positions: 通路であっても除外したい座標の集合。
+
+        Returns:
+            通常パグムを配置してよい座標のリスト。
+        """
         return [
             (x, y)
             for y, row in enumerate(maze_data)
@@ -46,7 +64,15 @@ class Pacgum:
         ]
 
     def collect(self, position: tuple[int, int]) -> PacgumKind | None:
-        """指定座標のパグムを回収する。無ければNoneを返す"""
+        """指定座標のパグムを回収する(集合から取り除く)。
+
+        Args:
+            position: Pacmanの現在グリッド座標(x, y)。
+
+        Returns:
+            回収できた場合はその種類(NORMAL/SUPER)、
+            その座標に何も無ければNone。
+        """
         if position in self.normal_positions:
             self.normal_positions.remove(position)
             return PacgumKind.NORMAL
@@ -56,9 +82,13 @@ class Pacgum:
         return None
 
     def remaining_count(self) -> int:
-        """未回収のパグム(通常＋スーパー)の総数"""
+        """未回収のパグム(通常＋スーパー)の総数を返す。"""
         return len(self.normal_positions) + len(self.super_positions)
 
     def is_empty(self) -> bool:
-        """全てのパグムが回収済みかどうか(レベルクリア判定に利用予定)"""
+        """全てのパグムが回収済みかどうかを返す。
+
+        Display.is_cleared()がこれを使ってレベルクリア判定
+        (課題要件: 全パグムを食べたらレベルクリア)を行う。
+        """
         return self.remaining_count() == 0
