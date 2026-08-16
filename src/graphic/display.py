@@ -94,12 +94,13 @@ class Display:
         # 最初のレベルは設定されたシード、それ以降はランダムに生成する。
         # （MazeGenerator は seed<=0 のとき random.seed() で真の乱数を使う）
         seed = self.config.seed if self.current_level_index == 0 else 0
-        self.maze_loader = MazeLoader(
-            width=level["width"], height=level["height"], seed=seed
+        self.maze_loader = self._build_maze_loader(
+            level["width"], level["height"], seed
         )
         self.maze_data = self.maze_loader.get_binary_grid()
         self.current_level = level["id"]
         self.game_context.current_level = self.current_level
+        self.game_context.time_remaining = self.config.level_max_time
         self.cell_size = self._cell_size_for_maze(
             len(self.maze_data[0]), len(self.maze_data)
         )
@@ -140,6 +141,39 @@ class Display:
         self.screen = pygame.display.set_mode((screen_width, screen_height))
 
         pygame.display.set_caption(f"Pac-Man - Level {self.current_level}")
+
+    @staticmethod
+    def _build_maze_loader(width: int, height: int, seed: int) -> MazeLoader:
+        """外部の迷路生成パッケージを呼び出し、失敗時は安全に処理する
+
+        課題要件(V.4)により、割り当てられたA-Maze-ingパッケージが失敗
+        した場合はトレースバックでクラッシュせずクリーンに処理しなければ
+        ならない。まず指定サイズで生成を試み、失敗したらデフォルトの
+        レベル1サイズで再試行し、それも失敗したら分かりやすいメッセージ
+        を出して終了する（起動を継続できないため）。
+        """
+        try:
+            return MazeLoader(width=width, height=height, seed=seed)
+        except Exception as error:
+            print(
+                f"Maze generation failed for size {width}x{height}: "
+                f"{error}"
+            )
+
+        fallback_width = DEFAULT_LEVELS[0]["width"]
+        fallback_height = DEFAULT_LEVELS[0]["height"]
+        try:
+            print(
+                "Retrying with the default maze size "
+                f"{fallback_width}x{fallback_height}."
+            )
+            return MazeLoader(
+                width=fallback_width, height=fallback_height, seed=seed
+            )
+        except Exception as fallback_error:
+            print(f"Fallback maze generation also failed: {fallback_error}")
+            pygame.quit()
+            raise SystemExit(1) from fallback_error
 
     @staticmethod
     def _cell_size_for_maze(width: int, height: int) -> int:
@@ -563,15 +597,21 @@ class Display:
     def _render_end_screen(self) -> None:
         self._ensure_score_entry()
         self.screen.fill((0, 0, 0))
-        heading = (
-            "Victory"
-            if self.game_context.state == GameState.VICTORY
-            else "Game Over"
-        )
+        is_victory = self.game_context.state == GameState.VICTORY
+        heading = "Victory" if is_victory else "Game Over"
         heading_y = 20
         self._draw_centered(heading, heading_y, (255, 255, 0), self.title_font)
+
+        content_top = heading_y + self.title_font.get_height() + 8
+        if is_victory:
+            self._draw_centered(
+                "Congratulations, you cleared every level!",
+                content_top, font=self.small_font,
+            )
+            content_top += self.small_font.get_height() + 8
+
         if self.score_submitted:
-            score_y = heading_y + self.title_font.get_height() + 8
+            score_y = content_top
             message_y = score_y + self.text_font.get_height() + 6
             highscore_title_y = (
                 message_y + self.small_font.get_height() + 8
@@ -604,12 +644,18 @@ class Display:
                 font=entry_font
             )
         else:
-            self._draw_centered(f"Final score: {self.game_context.score}", 130)
-            self._draw_centered("Enter your name:", 180, font=self.small_font)
-            self._draw_centered(f"> {self.name_input}_", 215)
+            score_y = content_top + 10
+            self._draw_centered(
+                f"Final score: {self.game_context.score}", score_y
+            )
+            self._draw_centered(
+                "Enter your name:", score_y + 50, font=self.small_font
+            )
+            self._draw_centered(f"> {self.name_input}_", score_y + 85)
             if self.input_error:
                 self._draw_centered(
-                    self.input_error, 260, (255, 80, 80), self.small_font
+                    self.input_error, score_y + 130,
+                    (255, 80, 80), self.small_font
                 )
 
     def _draw_pacgums(self) -> None:

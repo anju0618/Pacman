@@ -66,6 +66,75 @@ def test_display_scales_large_maze_to_window_limit(
         pygame.quit()
 
 
+def test_advance_to_next_level_resets_the_timer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SDL_VIDEODRIVER", "dummy")
+    config = Config(
+        level=[
+            {"id": 1, "width": 5, "height": 5},
+            {"id": 2, "width": 7, "height": 7},
+        ]
+    )
+    game_context = PacmanGameContext(config=config)
+    display = Display(game_context)
+    try:
+        game_context.time_remaining = 3.0
+
+        assert display.advance_to_next_level()
+
+        assert game_context.time_remaining == config.level_max_time
+    finally:
+        pygame.quit()
+
+
+def test_maze_generation_failure_falls_back_to_default_size(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SDL_VIDEODRIVER", "dummy")
+    import src.graphic.display as display_module
+
+    real_maze_loader = display_module.MazeLoader
+    call_count = {"count": 0}
+
+    def flaky_maze_loader(
+        width: int, height: int, seed: int
+    ) -> display_module.MazeLoader:
+        call_count["count"] += 1
+        if call_count["count"] == 1:
+            raise RuntimeError("boom")
+        return real_maze_loader(width=width, height=height, seed=seed)
+
+    monkeypatch.setattr(display_module, "MazeLoader", flaky_maze_loader)
+
+    config = Config(level=[{"id": 1, "width": 5, "height": 5}])
+    game_context = PacmanGameContext(config=config)
+    display = Display(game_context)
+    try:
+        assert call_count["count"] == 2
+        assert display.maze_data
+    finally:
+        pygame.quit()
+
+
+def test_maze_generation_failure_exits_cleanly_when_fallback_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SDL_VIDEODRIVER", "dummy")
+    import src.graphic.display as display_module
+
+    def always_fails(width: int, height: int, seed: int) -> None:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(display_module, "MazeLoader", always_fails)
+
+    config = Config(level=[{"id": 1, "width": 5, "height": 5}])
+    game_context = PacmanGameContext(config=config)
+
+    with pytest.raises(SystemExit):
+        Display(game_context)
+
+
 def test_display_clears_when_all_pacgums_collected(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
