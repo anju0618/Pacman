@@ -26,13 +26,9 @@ gantt
     Enums, GameState & maze loader                     :done, a2, 2026-08-06, 1d
     Character base classes & first AI draft            :done, a3, 2026-08-07, 2d
     Bugfix pass w/ Claude Code review                  :done, a4, 2026-08-08, 1d
-    Ghost integration into the game loop               :done, a5, 2026-08-10, 1d
-    Ghost AI bugfix (infinite loop, Inky targeting)    :done, a6, 2026-08-10, 1d
-    Pacgum placement & collection                       :done, a7, 2026-08-16, 1d
-    Ghost modes (Scatter/Chase/Frightened/Eaten)        :done, a8, 2026-08-16, 1d
-    Collisions, lives, timers, warp tunnel, cheat mode  :done, a9, 2026-08-16, 1d
-    Sprite rendering & chomp animation                    :done, a10, 2026-08-16, 1d
-    Bugfix pass #2 & pacgum density fix (VI.1/VI.4)        :done, a11, 2026-08-16, 1d
+    Ghost integration & AI bugfix (loop, Inky target)  :done, a5, 2026-08-10, 1d
+    Pacgum, ghost modes, collisions & cheat mode       :done, a6, 2026-08-16, 1d
+    Sprites, chomp animation & bugfix pass #2          :done, a7, 2026-08-16, 1d
 
     section Taiyo Kawakami (takawaka)
     Config parser (JSON w/ comments)                   :done, t1, 2026-08-06, 2d
@@ -42,6 +38,10 @@ gantt
     Display / GameContext refactor                          :done, t5, 2026-08-14, 1d
     Highscore system & main menu                             :done, t6, 2026-08-15, 1d
     Window size & speed tuning                                :done, t7, 2026-08-16, 1d
+
+    section Collaborative / Both
+    Test suite growth alongside every feature            :done, c1, 2026-08-06, 2026-08-16
+    Docs: README, TASK.md, gant.md                          :done, c2, 2026-08-16, 1d
 
     section Remaining
     Docstring pass (PEP257, ~56 functions)                     :active, r1, 2026-08-17, 2d
