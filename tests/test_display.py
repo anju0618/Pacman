@@ -200,7 +200,34 @@ def test_display_submits_final_score(
         pygame.quit()
 
 
-def test_display_does_not_keep_unsaved_score(
+def test_name_input_ignores_leading_spaces(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("SDL_VIDEODRIVER", "dummy")
+    highscore_system = HighScoreSystem(
+        str(tmp_path / "highscores.json")
+    )
+    game_context = PacmanGameContext(config=Config())
+    display = Display(game_context, highscore_system)
+    try:
+        game_context.state = GameState.GAME_OVER
+        space_event = pygame.event.Event(
+            pygame.KEYDOWN, key=pygame.K_SPACE, unicode=" "
+        )
+        for _ in range(10):
+            display._handle_event(space_event)
+
+        letter_event = pygame.event.Event(
+            pygame.KEYDOWN, key=pygame.K_a, unicode="A"
+        )
+        display._handle_event(letter_event)
+
+        assert display.name_input == "A"
+    finally:
+        pygame.quit()
+
+
+def test_display_can_retry_unsaved_score(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.setenv("SDL_VIDEODRIVER", "dummy")
@@ -215,9 +242,20 @@ def test_display_does_not_keep_unsaved_score(
 
         display._submit_highscore()
 
-        assert display.score_submitted
+        assert not display.score_submitted
         assert highscore_system.entries == []
         assert display.score_message == "The score could not be saved."
+        assert (
+            display.input_error
+            == "The score could not be saved. Try again."
+        )
+        assert display.name_input == "PLAYER 1"
+
+        (tmp_path / "missing").mkdir()
+        display._submit_highscore()
+
+        assert display.score_submitted
+        assert len(highscore_system.entries) == 1
     finally:
         pygame.quit()
 
