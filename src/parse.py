@@ -1,12 +1,11 @@
 """
 config.jsonの読み込み・検証を行うモジュール。
 
-JSON標準に加えて `#` や `//` によるコメント行、`/* ... */` による
-ブロックコメントを許容するパーサー(Parsing)と、pydanticによる
-型・範囲検証つきの設定モデル(Config)を提供する。
+JSON標準に加えて、空白を除いた行頭が `#` のコメント行を許容する
+パーサー(Parsing)と、pydanticによる型・範囲検証つきの設定モデル
+(Config)を提供する。
 """
 import json
-import re
 from typing import Annotated, Self, TypedDict
 
 from pydantic import BaseModel, Field, ValidationError, model_validator
@@ -99,64 +98,29 @@ class Config(BaseModel):
 class Parsing:
     """config.jsonファイルを読み込み、Configへ変換するローダー。
 
-    JSON標準に無い `#`・`//`・`/* */` コメントの除去と、
+    JSON標準に無い、行頭が `#` のコメント行の除去と、
     キー単位で安全なデフォルトへフォールバックする検証を担当する。
     ファイルの欠損・不正なJSON・不正な値、いずれの場合もトレースバック
     ではなくメッセージを出力して処理を継続する(課題要件V.1/V.3)。
     """
 
     @staticmethod
-    def _strip_line_comment(line: str) -> str:
-        """
-        行内で最初にJSON文字列の外側に現れた '#' または '//' より
-        右側をコメントとして切り捨てる。文字列リテラル内の '#'/'//' は
-        値として保持する。
-        """
-        in_string = False
-        escaped = False
-
-        for i, ch in enumerate(line):
-            if in_string:
-                if escaped:
-                    # 直前が'\'だったので、このダブルクオートは
-                    # エスケープされた文字であり文字列の終端ではない。
-                    escaped = False
-                elif ch == '\\':
-                    escaped = True
-                elif ch == '"':
-                    in_string = False
-                continue
-
-            if ch == '"':
-                in_string = True
-            elif ch == '#':
-                return line[:i]
-            elif ch == '/' and i + 1 < len(line) and line[i + 1] == '/':
-                return line[:i]
-
-        return line
-
-    @staticmethod
     def _remove_comments(text: str) -> str:
-        """JSONテキストから3種類のコメントを取り除く。
-
-        1. `/* ... */` のブロックコメント(複数行にまたがってもよい)。
-        2. 各行ごとの `#` または `//` 以降の行コメント
-           (文字列リテラルの外側にあるもののみ、`_strip_line_comment`が判定)。
-        """
-        text = re.sub(r'/\*.*?\*/', '', text, flags=re.DOTALL)
-        lines = [
-            Parsing._strip_line_comment(line) for line in text.splitlines()
-        ]
-        return '\n'.join(lines)
+        """空白を除いた行頭が `#` のコメント行だけを取り除く。"""
+        return '\n'.join(
+            line
+            for line in text.splitlines()
+            if not line.lstrip().startswith('#')
+        )
 
     @staticmethod
     def parse_file(filename: str) -> Config:
         """config.jsonファイルを読み込み、検証済みのConfigを返す。
 
-        ファイルが存在しない・権限がない・JSONとして壊れている、
-        いずれの場合もクラッシュせずメッセージを出力し、デフォルト値の
-        Config()を返す(課題要件: 不正な設定でも安全に継続すること)。
+        ファイルが存在しない・権限がない・UTF-8として読めない・
+        JSONとして壊れている、いずれの場合もクラッシュせずメッセージを
+        出力し、デフォルト値のConfig()を返す
+        (課題要件: 不正な設定でも安全に継続すること)。
         """
         try:
             with open(filename, "r", encoding="utf-8") as f:
@@ -168,6 +132,10 @@ class Parsing:
 
         except PermissionError:
             print(f"Permission denied: {filename}")
+            return Config()
+
+        except UnicodeDecodeError as e:
+            print(f"Config file is not valid UTF-8: {filename} ({e})")
             return Config()
 
         except OSError as e:
