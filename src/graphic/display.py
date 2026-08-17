@@ -31,11 +31,11 @@ GHOST_SPRITE_KEYS: dict[type, str] = {
     Clyde: "clyde",
 }
 # Pacmanのスプライトは右向きで描かれているため、実際の進行方向に
-# あわせて回転させる角度(度・反時計回り)。
+# あわせて回転させる角度(度・反時計回り)。LEFTは180度回転だと目の
+# 位置まで上下反転してしまうため、回転ではなく左右反転で描く。
 PACMAN_ROTATION_DEGREES: dict[Direction, int] = {
     Direction.RIGHT: 0,
     Direction.UP: 90,
-    Direction.LEFT: 180,
     Direction.DOWN: 270,
 }
 
@@ -58,6 +58,9 @@ SCATTER_CHASE_SCHEDULE: tuple[tuple[GhostMode, float], ...] = (
     (GhostMode.CHASE, 20.0),
 )
 FRIGHTENED_DURATION = 6.0
+# EATENゴーストが自分の角（home_position）に帰り着いてから、
+# 再びSCATTER/CHASEへ復帰するまでに待機する秒数。
+EATEN_RESPAWN_WAIT = 5.0
 CHEAT_SPEED_FACTOR = 1.5
 CHOMP_INTERVAL = 0.1
 # closed -> half -> full open -> half -> (repeat): a natural chomp cycle
@@ -267,10 +270,13 @@ class Display:
         return True
 
     def _apply_scheduled_mode(self) -> None:
-        """FRIGHTENED/EATEN中でないゴーストを現在のScatter/Chase局面へ揃える"""
+        """FRIGHTENED/EATEN/WAITING中でないゴーストを
+        現在のScatter/Chase局面へ揃える"""
         mode, _ = SCATTER_CHASE_SCHEDULE[self.mode_schedule_index]
         for ghost in self.ghosts:
-            if ghost.mode not in (GhostMode.FRIGHTENED, GhostMode.EATEN):
+            if ghost.mode not in (
+                GhostMode.FRIGHTENED, GhostMode.EATEN, GhostMode.WAITING
+            ):
                 ghost.set_mode(mode)
 
     def _end_frightened(self) -> None:
@@ -286,7 +292,10 @@ class Display:
                 ghost.set_mode(mode)
 
     def _advance_ghost_modes(self, delta_time: float) -> None:
-        """Scatter/Chaseのスケジュール進行、およびFRIGHTENEDの残り時間管理"""
+        """Scatter/Chaseのスケジュール進行、FRIGHTENEDの残り時間管理、
+        および巣で待機中(WAITING)ゴーストの復帰処理を行う"""
+        self._advance_waiting_ghosts(delta_time)
+
         if self.frightened_timer > 0:
             self.frightened_timer -= delta_time
             if self.frightened_timer <= 0:
@@ -304,26 +313,40 @@ class Display:
             self._apply_scheduled_mode()
 
     def _trigger_frightened(self) -> None:
-        """スーパーパグムを食べた時、EATEN中でない全ゴーストをイジケさせる"""
+        """スーパーパグムを食べた時、EATEN/WAITING中でない
+        全ゴーストをイジケさせる"""
         self.frightened_timer = FRIGHTENED_DURATION
         for ghost in self.ghosts:
-            if ghost.mode != GhostMode.EATEN:
+            if ghost.mode not in (GhostMode.EATEN, GhostMode.WAITING):
                 ghost.set_mode(GhostMode.FRIGHTENED)
 
     def _resolve_eaten_ghosts(self) -> None:
-        """巣に帰り着いたEATENゴーストを現在の局面へ復帰させる"""
-        mode, _ = SCATTER_CHASE_SCHEDULE[self.mode_schedule_index]
+        """巣（角）に帰り着いたEATENゴーストをWAITING状態にする。
+        実際にScatter/Chaseへ復帰するのは、_advance_waiting_ghosts()が
+        EATEN_RESPAWN_WAIT秒待った後に行う。"""
         for ghost in self.ghosts:
             if (
                 ghost.mode == GhostMode.EATEN
                 and ghost.get_current_grid() == ghost.home_position
             ):
+                ghost.set_mode(GhostMode.WAITING)
+                ghost.wait_timer = EATEN_RESPAWN_WAIT
+
+    def _advance_waiting_ghosts(self, delta_time: float) -> None:
+        """巣（角）で待機中(WAITING)のゴーストのタイマーを進め、
+        EATEN_RESPAWN_WAIT秒経過したら現在の局面へ復帰させる"""
+        mode, _ = SCATTER_CHASE_SCHEDULE[self.mode_schedule_index]
+        for ghost in self.ghosts:
+            if ghost.mode != GhostMode.WAITING:
+                continue
+            ghost.wait_timer -= delta_time
+            if ghost.wait_timer <= 0:
                 ghost.set_mode(mode)
 
     def _check_ghost_collisions(self) -> None:
         """Pacmanとゴーストの円同士の当たり判定"""
         for ghost in self.ghosts:
-            if ghost.mode == GhostMode.EATEN:
+            if ghost.mode in (GhostMode.EATEN, GhostMode.WAITING):
                 continue
 
             dx = self.pacman.x - ghost.x
@@ -361,6 +384,7 @@ class Display:
             ghost.x, ghost.y = float(home_x), float(home_y)
             ghost.direction = Direction.RIGHT
             ghost.next_direction = None
+            ghost.wait_timer = 0.0
             ghost.set_mode(mode)
 
         self.game_context.time_remaining = self.config.level_max_time
@@ -918,9 +942,12 @@ class Display:
         )
         pacman_sprite_key = PACMAN_CHOMP_FRAMES[chomp_phase]
         pacman_sprite = self.sprites.get(pacman_sprite_key, self.cell_size)
-        rotated_pacman = pygame.transform.rotate(
-            pacman_sprite, PACMAN_ROTATION_DEGREES[self.pacman.direction]
-        )
+        if self.pacman.direction == Direction.LEFT:
+            rotated_pacman = pygame.transform.flip(pacman_sprite, True, False)
+        else:
+            rotated_pacman = pygame.transform.rotate(
+                pacman_sprite, PACMAN_ROTATION_DEGREES[self.pacman.direction]
+            )
         pac_px = self.pacman.x * self.cell_size + self.cell_size / 2
         pac_py = self.pacman.y * self.cell_size + self.cell_size / 2
         self.screen.blit(
@@ -930,7 +957,7 @@ class Display:
         for ghost in self.ghosts:
             if ghost.mode == GhostMode.FRIGHTENED:
                 sprite_key = "frightened"
-            elif ghost.mode == GhostMode.EATEN:
+            elif ghost.mode in (GhostMode.EATEN, GhostMode.WAITING):
                 sprite_key = "eaten"
             else:
                 sprite_key = GHOST_SPRITE_KEYS[type(ghost)]

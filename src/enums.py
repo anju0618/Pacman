@@ -41,6 +41,7 @@ class GhostMode(Enum):
     CHASE = auto()       # パックマンを追跡
     FRIGHTENED = auto()  # イジケ状態（逃亡）
     EATEN = auto()       # 目玉になって巣へ帰還中
+    WAITING = auto()     # 巣（角）に帰り着き、復活までしばし待機中
 
 
 class GhostType(Enum):
