@@ -42,3 +42,49 @@ def test_parser_falls_back_for_non_utf8_file(
 
     assert config.model_dump() == Config().model_dump()
     assert "Config file is not valid UTF-8" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    ("payload", "field", "expected"),
+    [
+        ('{"seed": true}', "seed", 42),
+        ('{"lives": true}', "lives", 3),
+        ('{"level_max_time": true}', "level_max_time", 90),
+        ('{"points_per_pacgum": true}', "points_per_pacgum", 10),
+        (
+            '{"points_per_super_pacgum": true}',
+            "points_per_super_pacgum",
+            50,
+        ),
+        ('{"points_per_ghost": true}', "points_per_ghost", 200),
+        (
+            '{"level": [{"id": true, "width": 9, "height": 9}]}',
+            "level",
+            Config().level,
+        ),
+        (
+            '{"level": [{"id": 1, "width": true, "height": 9}]}',
+            "level",
+            Config().level,
+        ),
+        (
+            '{"level": [{"id": 1, "width": 9, "height": true}]}',
+            "level",
+            Config().level,
+        ),
+    ],
+)
+def test_parser_falls_back_for_boolean_integer_values(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    payload: str,
+    field: str,
+    expected: object,
+) -> None:
+    filename = tmp_path / "config.json"
+    filename.write_text(payload, encoding="utf-8")
+
+    config = Parsing.parse_file(str(filename))
+
+    assert getattr(config, field) == expected
+    assert f"Invalid value for '{field}'" in capsys.readouterr().out

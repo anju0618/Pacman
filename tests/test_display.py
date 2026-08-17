@@ -494,5 +494,9 @@ def test_cheat_ghost_freeze_and_level_skip_keys(
         skip_event = pygame.event.Event(pygame.KEYDOWN, key=pygame.K_n)
         display._handle_event(skip_event)
         assert display.current_level == 2
+
+        display._start_game()
+        assert display.current_level == 1
+        assert not display.ghosts_frozen
     finally:
         pygame.quit()

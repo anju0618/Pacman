@@ -8,7 +8,13 @@ JSON標準に加えて、空白を除いた行頭が `#` のコメント行を�
 import json
 from typing import Annotated, Self, TypedDict
 
-from pydantic import BaseModel, Field, ValidationError, model_validator
+from pydantic import (
+    BaseModel,
+    Field,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
 
 
 class Level(TypedDict):
@@ -79,6 +85,37 @@ class Config(BaseModel):
     points_per_ghost: int = Field(default=200, ge=0)
 
     level: list[Level] = Field(default_factory=_default_levels)
+
+    @field_validator(
+        "seed",
+        "lives",
+        "level_max_time",
+        "points_per_pacgum",
+        "points_per_super_pacgum",
+        "points_per_ghost",
+        mode="before",
+    )
+    @classmethod
+    def reject_boolean_integers(cls, value: object) -> object:
+        """真偽値を整数設定として受理しない。"""
+        if isinstance(value, bool):
+            raise ValueError("integer settings must not be boolean")
+        return value
+
+    @field_validator("level", mode="before")
+    @classmethod
+    def reject_boolean_level_values(cls, value: object) -> object:
+        """レベル設定内の真偽値を整数として受理しない。"""
+        if isinstance(value, (list, tuple)):
+            for level in value:
+                if isinstance(level, dict) and any(
+                    isinstance(level.get(field_name), bool)
+                    for field_name in ("id", "width", "height")
+                ):
+                    raise ValueError(
+                        "level integer settings must not be boolean"
+                    )
+        return value
 
     @model_validator(mode="after")
     def ensure_minimum_levels(self) -> Self:

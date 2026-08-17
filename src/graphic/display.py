@@ -254,6 +254,7 @@ class Display:
         self.current_level_index = 0
         self.game_cleared = False
         self._score_entry_state = None
+        self.ghosts_frozen = False
         self.game_context.reset_for_new_game()
         self._load_level()
 
