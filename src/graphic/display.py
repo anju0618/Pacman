@@ -452,7 +452,9 @@ class Display:
         if not self.highscores.save():
             self.highscores.entries = previous_entries
             self.score_message = "The score could not be saved."
-        elif retained:
+            self.input_error = self.score_message + " Try again."
+            return
+        if retained:
             self.score_message = "Score saved in the top 10."
         else:
             self.score_message = "Score submitted outside the top 10."
@@ -507,7 +509,8 @@ class Display:
         elif len(self.name_input) < 10:
             character = event.unicode
             if character.isascii() and (
-                character.isalnum() or character == " "
+                character.isalnum()
+                or (character == " " and self.name_input.strip())
             ):
                 self.name_input += character
                 self.input_error = ""
