@@ -65,6 +65,7 @@ Other Makefile targets:
 - 1.5x Pac-Man speed.
 - `F`: freeze / unfreeze all ghosts.
 - `N`: instantly clear the current level.
+- Scores from cheat-mode runs are not recorded in the high score table.
 
 **Horror mode (`--horror`)**
 
@@ -152,8 +153,8 @@ fixed number.
   temporary file + `os.replace`) whenever a new score is submitted.
 - A missing file, corrupt JSON, or invalid entries never crash the game — the
   loader logs a message and falls back to an empty table.
-- On Game Over or Victory, the game prompts for a name and shows the updated top
-  10.
+- On Game Over or Victory (except in cheat mode), the game prompts for a name
+  and shows the updated top 10.
 
 ### Maze Generation
 
@@ -367,6 +368,7 @@ python3 pac-man.py <config.json> [--cheat] [--horror]
 - パックマンの移動速度1.5倍。
 - `F`: 全ゴーストの凍結/解除をトグル。
 - `N`: 現在のレベルを即座にクリア。
+- チートモードでのプレイ結果はハイスコアに記録しない。
 
 **ホラーモード(`--horror`)**
 
@@ -452,7 +454,7 @@ unlistedビルドとしてアップロードする。Steamの場合は同じ実�
   (一時ファイル＋`os.replace`によるアトミックな書き込み)。
 - ファイルの欠損・JSONの破損・不正なエントリがあってもクラッシュせず、
   メッセージを出力した上で空のテーブルにフォールバックする。
-- ゲームオーバー/勝利画面で名前入力を求め、更新後の上位10件を表示する。
+- ゲームオーバー/勝利画面で（チートモードを除き）名前入力を求め、更新後の上位10件を表示する。
 
 ### 迷路生成
 

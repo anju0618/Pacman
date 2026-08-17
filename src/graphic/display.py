@@ -42,6 +42,8 @@ PACMAN_ROTATION_DEGREES: dict[Direction, int] = {
 # メインメニューの選択肢(課題要件VI.8: Start Game/View Highscores/
 # Instructions/Exitの4つ)。
 MENU_OPTIONS = ("Start Game", "View Highscores", "Instructions", "Exit")
+# チートプレイのスコアは、通常プレイのランキングを汚さないよう保存しない。
+CHEAT_SCORE_MESSAGE = "Cheat mode scores are not recorded."
 # ゲーム終了(勝敗確定)を表す状態の集合。ハイスコア入力画面の表示や
 # 入力イベントの振り分けで、この2状態をまとめて扱う箇所が多いため。
 END_STATES = (GameState.GAME_OVER, GameState.VICTORY)
@@ -115,6 +117,7 @@ class Display:
         self.input_error = ""
         self.score_message = ""
         self.score_submitted = False
+        self.score_entry_skipped = False
         self._score_entry_state: GameState | None = None
         self.ghosts_frozen = False
         self.pacman_chomp_timer = 0.0
@@ -254,6 +257,7 @@ class Display:
         self.current_level_index = 0
         self.game_cleared = False
         self._score_entry_state = None
+        self.score_entry_skipped = False
         self.ghosts_frozen = False
         self.game_context.reset_for_new_game()
         self._load_level()
@@ -434,6 +438,10 @@ class Display:
         self.input_error = ""
         self.score_message = ""
         self.score_submitted = False
+        self.score_entry_skipped = False
+        if self.game_context.is_cheat_mode_active:
+            self.score_entry_skipped = True
+            self.score_message = CHEAT_SCORE_MESSAGE
 
     def _submit_highscore(self) -> None:
         """入力された名前で現在のスコアをハイスコアに登録する。
@@ -442,6 +450,12 @@ class Display:
         (エラーメッセージ/元の状態への復元も含めて)ユーザーに
         分かる形でフィードバックし、クラッシュしない。
         """
+        if self.game_context.is_cheat_mode_active:
+            self.score_entry_skipped = True
+            self.score_message = CHEAT_SCORE_MESSAGE
+            self.input_error = ""
+            return
+
         if not self.highscores.is_valid_name(self.name_input):
             self.input_error = "Use 1-10 letters, digits, or spaces."
             return
@@ -495,13 +509,18 @@ class Display:
     def _handle_end_event(self, event: pygame.event.Event) -> None:
         """ゲームオーバー/勝利画面での名前入力・確定操作を処理する。
 
-        スコア送信済みならEnterでメインメニューへ戻る。未送信なら
+        Escなら送信状態にかかわらずメインメニューへ戻る。
+        スコア送信済みならEnterでもメインメニューへ戻る。未送信なら
         BackSpaceで1文字削除、Enterで送信、それ以外の半角英数字/
         スペースの入力は名前欄(最大10文字)へ追加する
         (課題要件のプレイヤー名バリデーションに合わせて、
         ASCII英数字とスペース以外は最初から受け付けない)。
         """
-        if self.score_submitted:
+        if event.key == pygame.K_ESCAPE:
+            self.game_context.state = GameState.MAIN_MENU
+            return
+
+        if self.score_submitted or self.score_entry_skipped:
             if event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
                 self.game_context.state = GameState.MAIN_MENU
             return
@@ -788,7 +807,7 @@ class Display:
             )
             content_top += self.small_font.get_height() + 8
 
-        if self.score_submitted:
+        if self.score_submitted or self.score_entry_skipped:
             score_y = content_top
             message_y = score_y + self.text_font.get_height() + 6
             highscore_title_y = (

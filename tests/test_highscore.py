@@ -105,6 +105,36 @@ def test_corrupt_file_loads_empty_ranking(
     assert "Could not load high scores" in capsys.readouterr().out
 
 
+def test_oversized_integer_file_loads_empty_ranking(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    filename = tmp_path / "highscores.json"
+    filename.write_text(
+        '[{"name": "PLAYER", "score": '
+        + "9" * 5000
+        + "}]",
+        encoding="utf-8",
+    )
+    system = HighScoreSystem(str(filename))
+
+    assert system.load() == []
+    assert "Could not load high scores" in capsys.readouterr().out
+
+
+def test_invalid_filename_load_and_save_do_not_raise(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    system = HighScoreSystem("\x00")
+
+    assert system.load() == []
+    system.add("PLAYER", 100)
+    assert not system.save()
+
+    output = capsys.readouterr().out
+    assert "Could not load high scores" in output
+    assert "Could not save high scores" in output
+
+
 def test_save_error_does_not_raise(tmp_path: Path) -> None:
     system = HighScoreSystem(str(tmp_path / "missing" / "highscores.json"))
     system.add("PLAYER", 100)
