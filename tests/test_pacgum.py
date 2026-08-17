@@ -1,4 +1,5 @@
 from src.pacgum import Pacgum, PacgumKind
+from src.maze_loader import MazeLoader
 
 MAZE = [
     [1, 1, 1, 1, 1],
@@ -66,3 +67,28 @@ def test_is_empty_once_every_pacgum_is_collected() -> None:
 
     assert pacgum.is_empty()
     assert pacgum.remaining_count() == 0
+
+
+def test_does_not_place_pacgums_on_unreachable_cells() -> None:
+    loader = MazeLoader(width=21, height=21, seed=42)
+    maze_data = loader.get_binary_grid()
+    start_position = loader.find_center_start_position()
+    super_positions = loader.find_corner_positions()
+    pacgum = Pacgum(
+        maze_data=maze_data,
+        super_positions=super_positions,
+        excluded_positions=[start_position],
+    )
+
+    open_cells = {
+        (x, y)
+        for y, row in enumerate(maze_data)
+        for x, cell in enumerate(row)
+        if cell == 0
+    }
+    reachable = Pacgum._reachable_open_cells(
+        maze_data, {start_position}
+    )
+
+    assert open_cells - reachable
+    assert pacgum.normal_positions <= reachable
