@@ -60,6 +60,9 @@ class Ghost(Character):
         self._bfs_target: tuple[int, int] | None = None
         self._bfs_maze: list[list[int]] | None = None
         self._bfs_distances: dict[tuple[int, int], int] = {}
+        # WAITING中、巣（角）で復活まで待つ残り時間（秒）。
+        # Display._advance_waiting_ghosts()が管理する。
+        self.wait_timer: float = 0.0
 
     def set_mode(self, mode: GhostMode) -> None:
         """モードを切り替え、速度と（必要なら）向きを追従させる"""
@@ -72,6 +75,8 @@ class Ghost(Character):
             self.direction = self._opposite_direction(self.direction)
         elif mode == GhostMode.EATEN:
             self.speed = self.base_speed * self.EATEN_SPEED_FACTOR
+        elif mode == GhostMode.WAITING:
+            self.speed = 0.0
         else:
             self.speed = self.base_speed
 
@@ -92,6 +97,9 @@ class Ghost(Character):
     ) -> None:
         """毎フレーム呼ばれる更新処理：新しいマスに入った時だけAIで方向を
         決定し、移動は毎フレーム行う"""
+        if self.mode == GhostMode.WAITING:
+            # 巣（角）で復活を待つ間は動かない
+            return
         current_grid = self.get_current_grid()
         if current_grid != self._decided_grid:
             self._decided_grid = current_grid
