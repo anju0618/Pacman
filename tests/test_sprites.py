@@ -3,7 +3,7 @@ from typing import Iterator
 import pygame
 import pytest
 
-from src.graphic.sprites import SPRITE_FILENAMES, SpriteSet
+from src.graphic.sprites import HORROR_ASSET_DIR, SPRITE_FILENAMES, SpriteSet
 
 
 @pytest.fixture(autouse=True)
@@ -17,6 +17,14 @@ def _pygame_display(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
 
 def test_loads_every_declared_sprite() -> None:
     sprites = SpriteSet()
+
+    for key in SPRITE_FILENAMES:
+        sprite = sprites.get(key, 32)
+        assert sprite.get_size() == (32, 32)
+
+
+def test_loads_every_declared_horror_sprite() -> None:
+    sprites = SpriteSet(HORROR_ASSET_DIR)
 
     for key in SPRITE_FILENAMES:
         sprite = sprites.get(key, 32)

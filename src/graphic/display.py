@@ -20,7 +20,7 @@ from src.game_state import PacmanGameContext
 from src.highscore import HighScoreSystem
 from src.pacgum import Pacgum, PacgumKind
 from src.parse import Config, DEFAULT_LEVELS
-from src.graphic.sprites import SpriteSet
+from src.graphic.sprites import ASSET_DIR, HORROR_ASSET_DIR, SpriteSet
 
 # ゴーストのクラス(型)から、対応するスプライトキー(src/graphic/sprites.py
 # のSPRITE_FILENAMES)への対応表。
@@ -84,6 +84,7 @@ class Display:
         self,
         game_context: PacmanGameContext,
         highscore_system: HighScoreSystem | None = None,
+        horror_mode: bool = False,
     ) -> None:
         """pygameを初期化し、フォント・ハイスコア・最初のレベルを準備する。
 
@@ -93,6 +94,8 @@ class Display:
             highscore_system: 使用するハイスコアシステム。省略時は
                 config.highscore_filenameを使って新規作成する
                 (テストで差し替えられるように引数化してある)。
+            horror_mode: Trueならグロテスク版スプライト(assets/
+                sprites_horror/)を使う(--horrorフラグ用)。
         """
         pygame.init()
 
@@ -117,7 +120,8 @@ class Display:
         self.pacman_chomp_timer = 0.0
 
         self._load_level()
-        self.sprites = SpriteSet()
+        sprite_dir = HORROR_ASSET_DIR if horror_mode else ASSET_DIR
+        self.sprites = SpriteSet(sprite_dir)
         self.clock = pygame.time.Clock()
         self.title_font = pygame.font.Font(None, 80)
         self.text_font = pygame.font.Font(None, 50)

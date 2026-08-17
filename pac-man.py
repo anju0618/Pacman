@@ -43,6 +43,12 @@ def _parse_args() -> argparse.Namespace:
         help="enable cheat mode (invincibility, extra lives, "
              "faster movement, F to freeze ghosts, N to skip a level)",
     )
+    parser.add_argument(
+        "--horror",
+        action="store_true",
+        help="use the grotesque horror-themed sprite set instead of "
+             "the default one",
+    )
     return parser.parse_args()
 
 
@@ -65,7 +71,7 @@ def main() -> None:
         is_cheat_mode_active=args.cheat,
     )
 
-    Display(game_context).run()
+    Display(game_context, horror_mode=args.horror).run()
 
 
 if __name__ == "__main__":
