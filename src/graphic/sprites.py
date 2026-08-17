@@ -12,6 +12,9 @@ from src.resources import resource_path
 # ソース実行時はリポジトリ直下のassets/sprites/、パッケージ版では
 # 実行ファイルに同梱されたassets/sprites/を指す(src/resources.py参照)。
 ASSET_DIR = resource_path("assets", "sprites")
+# --horrorフラグ指定時に使う、グロテスク版スプライト一式
+# (scripts/generate_horror_sprites.pyで生成。ファイル名はASSET_DIRと共通)。
+HORROR_ASSET_DIR = resource_path("assets", "sprites_horror")
 
 # 「見た目の種類」と「対応するPNGファイル名」の対応表。
 # キーを変えずにファイルの中身だけ差し替えれば絵を変えられる。

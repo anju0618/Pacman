@@ -449,6 +449,25 @@ def test_cheat_mode_boosts_speed_and_grants_extra_lives(
         pygame.quit()
 
 
+def test_horror_mode_swaps_sprite_set(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SDL_VIDEODRIVER", "dummy")
+    config = Config(level=[{"id": 1, "width": 9, "height": 9}])
+    plain_display = Display(PacmanGameContext(config=config))
+    horror_display = Display(
+        PacmanGameContext(config=config), horror_mode=True
+    )
+    try:
+        plain_sprite = plain_display.sprites.get("pacman_open", 32)
+        horror_sprite = horror_display.sprites.get("pacman_open", 32)
+        assert pygame.image.tostring(
+            plain_sprite, "RGBA"
+        ) != pygame.image.tostring(horror_sprite, "RGBA")
+    finally:
+        pygame.quit()
+
+
 def test_cheat_ghost_freeze_and_level_skip_keys(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

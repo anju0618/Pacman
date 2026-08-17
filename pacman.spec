@@ -13,9 +13,10 @@
     dist/pacman           起動可能な単一実行ファイル
 
 同梱するもの:
-    assets/sprites/*.png  ゲームの全グラフィック
-    config.json           既定の設定ファイル(引数なし起動時に使う)
-    INSTRUCTIONS.txt      操作方法・オプション・設定の説明
+    assets/sprites/*.png        ゲームの全グラフィック
+    assets/sprites_horror/*.png --horror用のグロテスク版グラフィック
+    config.json                 既定の設定ファイル(引数なし起動時に使う)
+    INSTRUCTIONS.txt             操作方法・オプション・設定の説明
 """
 
 block_cipher = None
@@ -29,6 +30,7 @@ analysis = Analysis(
     # この構造で展開され、src/resources.pyがそのパスを解決する。
     datas=[
         ('assets/sprites', 'assets/sprites'),
+        ('assets/sprites_horror', 'assets/sprites_horror'),
         ('config.json', '.'),
         ('INSTRUCTIONS.txt', '.'),
     ],

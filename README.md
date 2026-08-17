@@ -29,12 +29,15 @@ make run       # uv run python pac-man.py config.json
 or directly:
 
 ```sh
-python3 pac-man.py <config.json> [--cheat]
+python3 pac-man.py <config.json> [--cheat] [--horror]
 ```
 
 - `<config.json>` (required): path to a JSON configuration file (see Configuration
   below).
 - `--cheat` (optional): enables cheat mode for peer review.
+- `--horror` (optional): swaps every sprite (Pac-Man, ghosts, walls, pacgums) for
+  a grotesque, bloodshot-eyed alternate art set. Purely visual, combinable with
+  `--cheat`.
 
 Other Makefile targets:
 
@@ -63,6 +66,15 @@ Other Makefile targets:
 - `F`: freeze / unfreeze all ghosts.
 - `N`: instantly clear the current level.
 
+**Horror mode (`--horror`)**
+
+Swaps the whole sprite set (`assets/sprites/`) for a grotesque alternate one
+(`assets/sprites_horror/`) — bloodshot eyes, jagged teeth, cracked walls,
+bleeding ghosts. Purely cosmetic: gameplay, collision shapes and scoring are
+unaffected. The alternate sprites are procedurally generated (see
+`scripts/generate_horror_sprites.py`) rather than hand-drawn or produced by an
+image-generation model.
+
 **Goal**
 
 Eat every pacgum on a level to clear it. Eating a super pacgum makes every ghost
@@ -81,17 +93,18 @@ make package          # or: ./build_package.sh
 ./dist/pacman         # the packaged game, no Python install required
 ```
 
-The build bundles the sprites, the default `config.json` and `INSTRUCTIONS.txt`
-(controls, options and configuration reference) into the executable. Paths are
-resolved through `src/resources.py`, which transparently switches between the
-repository layout and PyInstaller's runtime extraction directory.
+The build bundles both sprite sets (default and `--horror`), the default
+`config.json` and `INSTRUCTIONS.txt` (controls, options and configuration
+reference) into the executable. Paths are resolved through `src/resources.py`,
+which transparently switches between the repository layout and PyInstaller's
+runtime extraction directory.
 
 Because a packaged game launched from a store front is double-clicked rather
 than run from a shell, the config argument is optional in the packaged build and
 falls back to the bundled `config.json`; running from source still takes the
 config file as its argument exactly as specified. Passing a custom config
-(`./dist/pacman my_config.json`) and `--cheat` both work on the packaged build
-as well.
+(`./dist/pacman my_config.json`), `--cheat` and `--horror` all work on the
+packaged build as well.
 
 To distribute on Itch.io, zip `dist/pacman` together with `INSTRUCTIONS.txt` and
 upload it as an unlisted build; for Steam, register the same executable as the
@@ -281,7 +294,11 @@ fixes. Concretely, Claude Code was used to:
 - design and implement whole subsystems end-to-end (pacgum placement/collection,
   ghost mode switching, ghost-player collision, the warp tunnel, the in-game
   HUD, and the cheat mode effects);
-- write and update the accompanying unit tests.
+- write and update the accompanying unit tests;
+- write `scripts/generate_horror_sprites.py`, a script that procedurally draws
+  the `--horror` sprite set with pygame's own shape-drawing primitives
+  (circles, polygons, lines) — no external art assets or image-generation
+  model were used for any sprite.
 
 All AI-assisted changes are visible in the git history and summarized in
 `management/TASK.md` / `management/gant.md`.
@@ -318,11 +335,13 @@ make run       # uv run python pac-man.py config.json
 または直接:
 
 ```sh
-python3 pac-man.py <config.json> [--cheat]
+python3 pac-man.py <config.json> [--cheat] [--horror]
 ```
 
 - `<config.json>`(必須): JSON形式の設定ファイルのパス(詳細は下の「設定」を参照)。
 - `--cheat`(任意): ピアレビュー用のチートモードを有効化。
+- `--horror`(任意): パックマン・ゴースト・壁・パグムなど全スプライトを、血走った目の
+  グロテスクな別デザインに差し替える。見た目のみの変更で`--cheat`と併用可能。
 
 その他のMakefileターゲット:
 
@@ -349,6 +368,15 @@ python3 pac-man.py <config.json> [--cheat]
 - `F`: 全ゴーストの凍結/解除をトグル。
 - `N`: 現在のレベルを即座にクリア。
 
+**ホラーモード(`--horror`)**
+
+スプライト一式(`assets/sprites/`)を、グロテスクな別セット
+(`assets/sprites_horror/`)に丸ごと差し替える。血走った目・尖った牙・
+ひび割れた壁・血を流すゴーストなど。あくまで見た目だけの変更で、
+当たり判定やスコアには一切影響しない。これらのスプライトは
+`scripts/generate_horror_sprites.py`による手続き的生成であり、
+手描きや画像生成AIによるものではない。
+
 **ゲームの目的**
 
 レベル内の全てのパグムを食べればクリア。スーパーパグムを食べると数秒間全ゴースト
@@ -367,8 +395,9 @@ make package          # または: ./build_package.sh
 ./dist/pacman         # Python環境なしで動作するパッケージ版
 ```
 
-ビルド時に、スプライト画像・既定の`config.json`・`INSTRUCTIONS.txt`(操作方法・
-オプション・設定の説明)が実行ファイルへ同梱される。パスの解決は
+ビルド時に、通常/`--horror`両方のスプライト画像・既定の`config.json`・
+`INSTRUCTIONS.txt`(操作方法・オプション・設定の説明)が実行ファイルへ
+同梱される。パスの解決は
 `src/resources.py`が担当し、リポジトリ上のレイアウトとPyInstallerの実行時
 展開ディレクトリを自動的に切り替える。
 
@@ -376,7 +405,8 @@ make package          # または: ./build_package.sh
 パッケージ版に限り設定ファイルの指定を省略可能にし、同梱の`config.json`を
 既定値として使う(ソースから実行する場合は、課題指定どおり設定ファイルを引数に
 取る挙動のまま)。パッケージ版でも独自の設定ファイル指定
-(`./dist/pacman my_config.json`)と`--cheat`は問題なく動作する。
+(`./dist/pacman my_config.json`)、`--cheat`、`--horror`はいずれも問題なく
+動作する。
 
 Itch.ioで配布する場合は`dist/pacman`と`INSTRUCTIONS.txt`をzipにまとめて
 unlistedビルドとしてアップロードする。Steamの場合は同じ実行ファイルを
@@ -558,6 +588,9 @@ gantt
   ゴーストとの接触判定、ワープトンネル、イン・ゲームHUD、チートモードの
   効果など)。
 - 付随する単体テストの作成・更新。
+- `scripts/generate_horror_sprites.py`の作成。`--horror`用スプライトは
+  pygameの図形描画(円・多角形・線)だけで手続き的に生成しており、
+  外部素材や画像生成AIは一切使用していない。
 
 AIを使った変更は全てGit履歴から確認でき、`management/TASK.md` /
 `management/gant.md`にも要約している。

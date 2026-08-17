@@ -51,6 +51,16 @@ It enables:
   - N ... instantly clear the current level
 
 
+HORROR MODE
+-----------
+Launch with --horror to swap every sprite (Pac-Man, ghosts, walls,
+pacgums) for a grotesque, bloodshot-eyed alternate art set. It is
+purely visual and can be combined with --cheat:
+
+    pacman --horror
+    pacman --cheat --horror
+
+
 CONFIGURATION
 -------------
 The game reads its settings from a JSON file. The packaged build
