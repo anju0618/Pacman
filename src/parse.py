@@ -86,6 +86,14 @@ class Config(BaseModel):
 
     level: list[Level] = Field(default_factory=_default_levels)
 
+    @field_validator("highscore_filename")
+    @classmethod
+    def validate_highscore_filename(cls, value: str) -> str:
+        """空文字やNUL文字を含む保存先を受理しない。"""
+        if not value.strip() or "\x00" in value:
+            raise ValueError("high-score filename must be a valid path")
+        return value
+
     @field_validator(
         "seed",
         "lives",
@@ -191,6 +199,10 @@ class Parsing:
                 f"column {e.colno}: "
                 f"{e.msg}"
             )
+            return Config()
+
+        except ValueError as e:
+            print(f"Invalid JSON: {e}")
             return Config()
 
         if not isinstance(data, dict):

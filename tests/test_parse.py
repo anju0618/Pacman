@@ -44,6 +44,45 @@ def test_parser_falls_back_for_non_utf8_file(
     assert "Config file is not valid UTF-8" in capsys.readouterr().out
 
 
+def test_parser_falls_back_for_oversized_json_integer(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    filename = tmp_path / "config.json"
+    filename.write_text(
+        '{"seed": ' + "9" * 5000 + "}", encoding="utf-8"
+    )
+
+    config = Parsing.parse_file(str(filename))
+
+    assert config.model_dump() == Config().model_dump()
+    assert "Invalid JSON" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        '{"highscore_filename": ""}',
+        '{"highscore_filename": "   "}',
+        '{"highscore_filename": "\\u0000"}',
+    ],
+)
+def test_parser_falls_back_for_invalid_highscore_filename(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    payload: str,
+) -> None:
+    filename = tmp_path / "config.json"
+    filename.write_text(payload, encoding="utf-8")
+
+    config = Parsing.parse_file(str(filename))
+
+    assert config.highscore_filename == Config().highscore_filename
+    assert (
+        "Invalid value for 'highscore_filename'"
+        in capsys.readouterr().out
+    )
+
+
 @pytest.mark.parametrize(
     ("payload", "field", "expected"),
     [

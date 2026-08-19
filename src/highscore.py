@@ -96,7 +96,7 @@ class HighScoreSystem:
         except FileNotFoundError:
             self.entries = []
             return []
-        except (json.JSONDecodeError, UnicodeDecodeError, OSError) as error:
+        except (UnicodeDecodeError, OSError, ValueError) as error:
             print(f"Could not load high scores from '{self.path}': {error}")
             self.entries = []
             return []
@@ -201,7 +201,7 @@ class HighScoreSystem:
                 file.flush()
                 os.fsync(file.fileno())
             os.replace(temporary_path, self.path)
-        except OSError as error:
+        except (OSError, ValueError) as error:
             print(f"Could not save high scores to '{self.path}': {error}")
             return False
         finally:

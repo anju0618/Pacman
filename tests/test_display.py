@@ -200,6 +200,35 @@ def test_display_submits_final_score(
         pygame.quit()
 
 
+def test_cheat_mode_does_not_submit_final_score(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("SDL_VIDEODRIVER", "dummy")
+    highscore_filename = tmp_path / "highscores.json"
+    highscore_system = HighScoreSystem(str(highscore_filename))
+    game_context = PacmanGameContext(
+        config=Config(),
+        is_cheat_mode_active=True,
+        state=GameState.VICTORY,
+        score=999,
+    )
+    display = Display(game_context, highscore_system)
+    try:
+        display._ensure_score_entry()
+        display.name_input = "CHEATER"
+
+        display._submit_highscore()
+
+        assert display.score_entry_skipped
+        assert not display.score_submitted
+        assert display.score_message == "Cheat mode scores are not recorded."
+        assert not highscore_filename.exists()
+        assert highscore_system.entries == []
+        display._render_end_screen()
+    finally:
+        pygame.quit()
+
+
 def test_name_input_ignores_leading_spaces(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -256,6 +285,32 @@ def test_display_can_retry_unsaved_score(
 
         assert display.score_submitted
         assert len(highscore_system.entries) == 1
+    finally:
+        pygame.quit()
+
+
+def test_display_can_leave_end_screen_after_unsaved_score(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("SDL_VIDEODRIVER", "dummy")
+    highscore_system = HighScoreSystem(
+        str(tmp_path / "missing" / "highscores.json")
+    )
+    game_context = PacmanGameContext(
+        config=Config(), state=GameState.GAME_OVER, score=123
+    )
+    display = Display(game_context, highscore_system)
+    try:
+        display.name_input = "PLAYER 1"
+        display._submit_highscore()
+        assert not display.score_submitted
+
+        escape_event = pygame.event.Event(
+            pygame.KEYDOWN, key=pygame.K_ESCAPE
+        )
+
+        assert display._handle_event(escape_event)
+        assert game_context.state is GameState.MAIN_MENU
     finally:
         pygame.quit()
 
